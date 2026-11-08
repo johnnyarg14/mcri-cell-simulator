@@ -128,6 +128,9 @@ export interface RobotSnapshot {
   carrying: number;
   manual: boolean;
   ikInfo: string;
+  programRunning: boolean;
+  programIdx: number;
+  programCycles: number;
 }
 
 export interface Snapshot {
@@ -153,4 +156,27 @@ export interface Snapshot {
   productsVersion: number;
   bodies: number;
   messages: string[];
+  mode: 'auto' | 'manual';
+}
+
+// ---------------------------------------------------------------- mod manual / programe robot
+export type ProgramStepKind = 'move' | 'grip' | 'release' | 'wait';
+export interface ProgramStep {
+  id: string;
+  kind: ProgramStepKind;
+  name: string;
+  q?: number[]; // pentru 'move' (grade)
+  speed?: number; // % din viteza de catalog (move)
+  dwell?: number; // secunde (wait / grip / release)
+}
+export interface RobotProgram {
+  steps: ProgramStep[];
+  loop: boolean;
+  speed: number; // % global
+}
+export interface ProgramRun {
+  running: boolean;
+  idx: number;
+  t0: number;
+  cycles: number;
 }

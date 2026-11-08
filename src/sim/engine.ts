@@ -27,17 +27,40 @@ import type {
   Op,
   PalletLineState,
   Product,
+  ProgramRun,
+  ProgramStep,
+  RobotProgram,
   RobotTask,
   SequenceConfig,
   SequenceStep,
   Snapshot,
 } from './types';
 
+export type SimMode = 'auto' | 'manual';
+
 const smooth = (u: number) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
 const palletTopY = PALLET_LINE.tor + PALLET.h;
 const layerPitch = BUCKET.h + (SLIP_SHEET.t as number);
 const bucketBottomY = (layer: number) => palletTopY + layer * layerPitch;
 const sheetBottomY = (layer: number) => palletTopY + (layer + 1) * BUCKET.h + layer * SLIP_SHEET.t; // foaia de deasupra nivelului `layer`
+
+const PROGRAM_KEY = (id: string) => `mcri.program.${id}`;
+function loadProgram(robotId: string): RobotProgram {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(PROGRAM_KEY(robotId)) : null;
+    if (raw) return JSON.parse(raw) as RobotProgram;
+  } catch {
+    /* ignore */
+  }
+  return { steps: [], loop: false, speed: 100 };
+}
+function saveProgram(robotId: string, p: RobotProgram) {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(PROGRAM_KEY(robotId), JSON.stringify(p));
+  } catch {
+    /* ignore */
+  }
+}
 
 export interface RobotRuntime {
   cfg: RobotConfig;
@@ -58,6 +81,8 @@ export interface RobotRuntime {
   ikInfo: string;
   toolBox: { min: number[]; max: number[] };
   teach: { name: string; q: number[] }[];
+  program: RobotProgram;
+  run: ProgramRun;
 }
 
 type Listener = () => void;
@@ -77,6 +102,8 @@ export class Engine {
   robots: Record<string, RobotRuntime> = {};
   staticBodies: AABB[] = buildStaticBodies();
   collisionEnabled = true;
+  /** 'auto' = secvența JSON conduce roboții; 'manual' = utilizatorul (jog + programe) */
+  mode: SimMode = 'auto';
   // stații
   labeler = { busy: false, bucket: null as string | null, tEnd: 0, count: 0, op: null as Op | null, releaseUntilPassed: null as string | null };
   vision = { busy: false, bucket: null as string | null, tEnd: 0, inspected: 0, rejected: 0, op: null as Op | null, releaseUntilPassed: null as string | null, flash: 0 };
@@ -179,6 +206,8 @@ export class Engine {
         ikInfo: '',
         toolBox: { min: [0, 0, 0], max: [0, 0, 0] },
         teach: prev?.teach ?? [],
+        program: prev?.program ?? loadProgram(cfg.id),
+        run: { running: false, idx: 0, t0: 0, cycles: 0 },
       };
     }
     // stare inițială: palet plin la depal (S3) și la intrare (S1), palet gol la repal (S7)
@@ -823,6 +852,10 @@ export class Engine {
   }
 
   private stepRobot(r: RobotRuntime, _dt: number) {
+    if (this.mode === 'manual') {
+      this.stepProgram(r);
+      return;
+    }
     if (r.manual) {
       // în mod manual robotul nu este condus de secvență (până la Play)
       this.updateRobotFK(r);
@@ -1117,6 +1150,311 @@ export class Engine {
     return { kind: 'bucket', productIds: [b.id], pick, place, palletId: pal.id, layer: L, slots: [slot], steps: seq.bucketCycle };
   }
 
+
+  // ---------------------------------------------------------------- mod manual
+  setMode(mode: SimMode) {
+    if (this.mode === mode) return;
+    this.mode = mode;
+    for (const r of Object.values(this.robots)) {
+      this.endOp(r.currentOp);
+      this.endOp(r.waitOp);
+      r.currentOp = null;
+      r.waitOp = null;
+      r.task = null;
+      r.motion = null;
+      r.run = { running: false, idx: 0, t0: 0, cycles: 0 };
+      r.manual = false;
+      r.state = mode === 'manual' ? 'MANUAL' : 'IDLE';
+    }
+    this.message(mode === 'manual' ? 'Mod MANUAL: roboții sunt conduși prin jog și programe' : 'Mod AUTO: secvența din sequence.json');
+    this.notify();
+  }
+
+  setProgram(robotId: string, program: RobotProgram) {
+    const r = this.robots[robotId];
+    if (!r) return;
+    r.program = program;
+    saveProgram(robotId, program);
+  }
+
+  startProgram(robotId: string) {
+    const r = this.robots[robotId];
+    if (!r || r.program.steps.length === 0) return;
+    if (this.mode !== 'manual') this.setMode('manual');
+    r.run = { running: true, idx: -1, t0: this.t, cycles: 0 };
+    r.motion = null;
+    this.nextProgramStep(r);
+  }
+
+  stopProgram(robotId: string) {
+    const r = this.robots[robotId];
+    if (!r) return;
+    r.run.running = false;
+    r.motion = null;
+    this.endOp(r.currentOp);
+    r.currentOp = null;
+    r.state = 'MANUAL';
+  }
+
+  private nextProgramStep(r: RobotRuntime) {
+    this.endOp(r.currentOp);
+    r.currentOp = null;
+    r.run.idx++;
+    if (r.run.idx >= r.program.steps.length) {
+      r.run.cycles++;
+      if (!r.program.loop) {
+        r.run.running = false;
+        r.state = 'PROGRAM TERMINAT';
+        return;
+      }
+      r.run.idx = 0;
+    }
+    const step = r.program.steps[r.run.idx];
+    r.run.t0 = this.t;
+    r.state = `P${r.run.idx + 1}: ${step.name}`;
+    const colors: Record<ProgramStep['kind'], string> = { move: '#4dabf7', grip: '#40c057', release: '#fab005', wait: '#868e96' };
+    r.currentOp = this.beginOp(r.cfg.id, `${r.run.idx + 1}. ${step.name}`, colors[step.kind]);
+    switch (step.kind) {
+      case 'move': {
+        const q1 = step.q!.slice();
+        const pct = Math.max(1, Math.min(200, (step.speed ?? 100) * (r.program.speed / 100)));
+        let dur = 0.05;
+        for (let i = 0; i < q1.length; i++) dur = Math.max(dur, (Math.abs(q1[i] - r.q[i]) / r.cfg.joints[i].speed) * (100 / pct));
+        r.motion = { q0: r.q.slice(), q1, t0: this.t, dur };
+        break;
+      }
+      case 'grip':
+        this.manualGrip(r.cfg.id);
+        break;
+      case 'release':
+        this.manualRelease(r.cfg.id);
+        break;
+      case 'wait':
+        break;
+    }
+  }
+
+  private stepProgram(r: RobotRuntime) {
+    if (!r.run.running) {
+      this.updateRobotFK(r);
+      return;
+    }
+    const step = r.program.steps[r.run.idx];
+    const elapsed = this.t - r.run.t0;
+    if (r.motion) {
+      const u = smooth(elapsed / r.motion.dur);
+      for (let i = 0; i < r.q.length; i++) r.q[i] = r.motion.q0[i] + (r.motion.q1[i] - r.motion.q0[i]) * u;
+      if (elapsed >= r.motion.dur) {
+        r.q = r.motion.q1.slice();
+        r.motion = null;
+        this.updateRobotFK(r);
+        this.nextProgramStep(r);
+        return;
+      }
+    } else if (elapsed >= (step.dwell ?? (step.kind === 'wait' ? 1 : 0.3))) {
+      this.nextProgramStep(r);
+      return;
+    }
+    this.updateRobotFK(r);
+  }
+
+  /** prindere contextuală: produsele aflate sub sculă (în amprenta plăcii / ventuzelor) */
+  manualGrip(robotId: string): number {
+    const r = this.robots[robotId];
+    if (!r) return 0;
+    this.updateRobotFK(r);
+    const tcp = r.tcp;
+    const t = r.cfg.tool;
+    const inv = new Matrix4().copy(r.fk.tcp).invert();
+    const v = new Vector3();
+    const tol = 160; // toleranță verticală (mm)
+    const candidates: Product[] = [];
+    for (const p of this.products.values()) {
+      if (p.kind === 'pallet' || p.state === 'carried' || p.state === 'anim') continue;
+      const h = p.kind === 'bucket' ? BUCKET.h : SLIP_SHEET.t;
+      if (Math.abs(p.y + h - tcp.y) > tol) continue;
+      v.set(p.x, p.y + h, p.z).applyMatrix4(inv);
+      const hx = t.plateL / 2 + (p.kind === 'bucket' ? BUCKET.dia * 0.3 : 300);
+      const hy = t.plateW / 2 + (p.kind === 'bucket' ? BUCKET.dia * 0.3 : 300);
+      if (Math.abs(v.x) <= hx && Math.abs(v.y) <= hy) candidates.push(p);
+    }
+    // foaie din magazie (stiva este statică – se instanțiază la prindere)
+    const M = STATIONS.sheetMagazine;
+    const stackTop = M.platformH + this.sheetMagazine * SLIP_SHEET.t;
+    if (candidates.length === 0 && this.sheetMagazine > 0 && Math.hypot(tcp.x - M.center.x, tcp.z - M.center.z) < 350 && Math.abs(tcp.y - stackTop) < tol) {
+      const sid = this.newId('SHT');
+      const sheet: Product = { id: sid, kind: 'sheet', serial: this.serialOf(sid), x: M.center.x, y: stackTop - SLIP_SHEET.t, z: M.center.z, yaw: 0, state: 'stored', labeled: false, inspected: false, reject: false };
+      this.products.set(sid, sheet);
+      this.sheetMagazine--;
+      candidates.push(sheet);
+    }
+    if (candidates.length === 0) {
+      this.message(`${r.cfg.name}: nimic de prins sub sculă`);
+      return 0;
+    }
+    // gripper cu 4 ventuze: un singur produs (cel mai apropiat)
+    let picked = candidates;
+    if (t.kind === 'cups4') {
+      picked = [candidates.sort((a, b) => Math.hypot(a.x - tcp.x, a.z - tcp.z) - Math.hypot(b.x - tcp.x, b.z - tcp.z))[0]];
+    }
+    const tcpYaw = this.toolYaw(r);
+    for (const p of picked) {
+      if (p.state === 'onPallet' && p.palletId) {
+        const pal = this.products.get(p.palletId);
+        if (pal?.children) pal.children = pal.children.filter((c) => c !== p.id);
+      }
+      p.state = 'carried';
+      p.conveyor = undefined;
+      p.palletId = undefined;
+      v.set(p.x, p.y, p.z).applyMatrix4(inv);
+      p.carryOffset = [v.x, v.y, v.z];
+      p.carryYaw = p.yaw - tcpYaw;
+      r.carried.push(p.id);
+    }
+    this.message(`${r.cfg.name}: prins ${picked.length} produs(e)`);
+    this.notify();
+    return picked.length;
+  }
+
+  /** eliberare contextuală: pe conveior, pe palet sau pe pardoseală/suport */
+  manualRelease(robotId: string): number {
+    const r = this.robots[robotId];
+    if (!r) return 0;
+    this.updateRobotFK(r);
+    const ids = r.carried.slice();
+    r.carried = [];
+    for (const id of ids) {
+      const p = this.products.get(id);
+      if (!p) continue;
+      p.carryOffset = undefined;
+      const h = p.kind === 'bucket' ? BUCKET.h : SLIP_SHEET.t;
+      // 1) conveior de găleți
+      let placed = false;
+      if (p.kind === 'bucket') {
+        for (const c of BUCKET_LINE.conveyors) {
+          const path = this.paths[c.id];
+          const sProj = path.project(p.x, p.z);
+          const pt = path.at(sProj);
+          if (Math.hypot(pt.x - p.x, pt.z - p.z) <= BUCKET_LINE.bf / 2 && p.y > BUCKET_LINE.tor - 200 && p.y < BUCKET_LINE.tor + 500) {
+            p.state = 'onConveyor';
+            p.conveyor = c.id;
+            p.s = sProj;
+            p.x = pt.x;
+            p.z = pt.z;
+            p.y = BUCKET_LINE.tor;
+            p.yaw = 0;
+            if (p.tDepal === undefined) p.tDepal = this.t;
+            placed = true;
+            break;
+          }
+        }
+      }
+      // 2) palet
+      if (!placed) {
+        for (const pal of this.products.values()) {
+          if (pal.kind !== 'pallet') continue;
+          if (Math.abs(p.x - pal.x) <= PALLET.w / 2 && Math.abs(p.z - pal.z) <= PALLET.l / 2 && p.y > pal.y && p.y < pal.y + 2500) {
+            // așază peste cel mai înalt produs de sub amprenta sa
+            let top = pal.y + PALLET.h;
+            for (const cid of pal.children ?? []) {
+              const c = this.products.get(cid);
+              if (!c) continue;
+              const ch = c.kind === 'bucket' ? BUCKET.h : SLIP_SHEET.t;
+              const overlap = c.kind === 'sheet' || p.kind === 'sheet' || Math.hypot(c.x - p.x, c.z - p.z) < BUCKET.dia * 0.9;
+              if (overlap) top = Math.max(top, c.y + ch);
+            }
+            p.state = 'onPallet';
+            p.palletId = pal.id;
+            p.y = top;
+            p.yaw = 0;
+            p.ox = p.x - pal.x;
+            p.oz = p.z - pal.z;
+            p.oy = p.y - pal.y;
+            p.layer = Math.max(0, Math.round((p.y - (pal.y + PALLET.h)) / layerPitch));
+            pal.children!.push(p.id);
+            if (p.kind === 'bucket') {
+              p.tRepal = this.t;
+              this.produced++;
+              this.placeTimes.push(this.t);
+              this.checkPalletComplete(pal);
+            }
+            placed = true;
+            break;
+          }
+        }
+      }
+      // 3) pardoseală / suport
+      if (!placed) {
+        const B = STATIONS.sheetWasteBin;
+        const inBin = Math.abs(p.x - B.center.x) < B.size.w / 2 && Math.abs(p.z - B.center.z) < B.size.d / 2;
+        const yEnd = inBin ? 40 + this.sheetBin * SLIP_SHEET.t * 3 : 0;
+        if (inBin) this.sheetBin++;
+        p.state = 'anim';
+        p.anim = { t0: this.t, then: 'stored', frames: [{ x: p.x, y: p.y, z: p.z, t: 0 }, { x: p.x, y: yEnd, z: p.z, t: Math.max(0.2, Math.sqrt(Math.max(0, p.y - yEnd) / 4900)) }] };
+      }
+      void h;
+    }
+    this.message(`${r.cfg.name}: eliberat ${ids.length} produs(e)`);
+    this.notify();
+    return ids.length;
+  }
+
+  private checkPalletComplete(pal: Product) {
+    const total = PATTERN.layers.reduce((s, l) => s + l.flat().length, 0);
+    const nb = pal.children!.filter((c) => this.products.get(c)?.kind === 'bucket').length;
+    if (nb >= total && !pal.complete) {
+      pal.complete = true;
+      this.message(`Palet ${pal.serial} complet (${total} găleți) → infoliator`);
+    }
+  }
+
+  /** comenzi de populare pentru modul manual */
+  spawnFullPallet(): boolean {
+    const idx = PALLET_LINE.zones.findIndex((z) => z.role === 'infeed');
+    if (this.palletLine.zones[idx].occupant) {
+      this.message('Zona S1 este ocupată');
+      return false;
+    }
+    const p = this.spawnPallet(idx, true);
+    this.message(`Palet plin ${p.serial} adăugat la S1`);
+    return true;
+  }
+  spawnEmptyPallet(role: 'repal' | 'infeed' = 'repal'): boolean {
+    const idx = PALLET_LINE.zones.findIndex((z) => z.role === role);
+    if (this.palletLine.zones[idx].occupant) {
+      this.message(`Zona ${PALLET_LINE.zones[idx].id} este ocupată`);
+      return false;
+    }
+    const p = this.spawnPallet(idx, false);
+    this.message(`Palet gol ${p.serial} adăugat la ${PALLET_LINE.zones[idx].id}`);
+    return true;
+  }
+  spawnBucketOnConveyor(convId = 'CONV_B1', s = 150): boolean {
+    const path = this.paths[convId];
+    if (!path) return false;
+    for (const p of this.products.values()) if (p.state === 'onConveyor' && p.conveyor === convId && Math.abs(p.s! - s) < BUCKET.dia + 30) {
+      this.message('Loc ocupat pe conveior');
+      return false;
+    }
+    const bid = this.newId('BKT');
+    const pos = path.at(s);
+    const b: Product = { id: bid, kind: 'bucket', serial: this.serialOf(bid), x: pos.x, y: BUCKET_LINE.tor, z: pos.z, yaw: pos.yaw, state: 'onConveyor', conveyor: convId, s, labeled: false, inspected: false, reject: false, tDepal: this.t };
+    this.products.set(bid, b);
+    this.notify();
+    return true;
+  }
+  clearProducts() {
+    this.products.clear();
+    for (const z of this.palletLine.zones) z.occupant = null;
+    for (const r of Object.values(this.robots)) r.carried = [];
+    this.labeler.busy = false;
+    this.vision.busy = false;
+    this.wrapper.busy = false;
+    this.wrapper.pallet = null;
+    this.message('Toate produsele au fost eliminate');
+    this.notify();
+  }
+
   // ---------------------------------------------------------------- metrici / snapshot
   rateBpm(): number {
     const w = SIM.rateWindowS;
@@ -1149,7 +1487,11 @@ export class Engine {
         carrying: r.carried.length,
         manual: r.manual,
         ikInfo: r.ikInfo,
+        programRunning: r.run.running,
+        programIdx: r.run.idx,
+        programCycles: r.run.cycles,
       })),
+      mode: this.mode,
       conveyors: Object.values(this.conveyors).map((c) => ({ ...c, stops: c.stops.map((s) => ({ ...s })), photocells: c.photocells.map((p) => ({ ...p })) })),
       palletLine: { ...this.palletLine, zones: this.palletLine.zones.map((z) => ({ ...z })) },
       stations: {
@@ -1178,6 +1520,7 @@ export class Engine {
 
   /** resetează modul manual al roboților (la Play) */
   resumeAuto() {
+    if (this.mode === 'manual') return;
     for (const r of Object.values(this.robots)) {
       if (r.manual) {
         r.manual = false;

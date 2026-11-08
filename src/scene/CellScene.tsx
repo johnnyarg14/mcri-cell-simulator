@@ -15,6 +15,9 @@ import { Stations } from './Stations';
 import { Safety } from './Safety';
 import { Products } from './Products';
 import { objectRegistry } from './registry';
+import { CustomModels } from './ModelOrPrimitive';
+import { Selectable } from './Selectable';
+import { useModelStore } from '../store/useModelStore';
 
 const S = 0.001; // mm → m
 
@@ -144,6 +147,10 @@ function Highlights() {
 
 export function CellScene() {
   const showGrid = useSimStore((s) => s.showGrid);
+  const loadModels = useModelStore((s) => s.load);
+  useEffect(() => {
+    loadModels();
+  }, [loadModels]);
   const select = useSimStore((s) => s.select);
   const fw = (FLOOR.x1 - FLOOR.x0) * S;
   const fd = (FLOOR.z1 - FLOOR.z0) * S;
@@ -207,6 +214,7 @@ export function CellScene() {
         <Stations />
         <Safety />
         <Products />
+        <CustomModels Selectable={Selectable} />
       </group>
     </>
   );

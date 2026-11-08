@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useState, type ReactNode } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { MODELS_MANIFEST_URL } from '../config/cell.config';
+import { useModelStore } from '../store/useModelStore';
 
 /**
  * Manifestul modelelor glTF: public/models/manifest.json
@@ -44,8 +45,8 @@ function useManifest(): Manifest {
   return m;
 }
 
-function GLTFModel({ entry }: { entry: ManifestEntry }) {
-  const url = import.meta.env.BASE_URL + 'models/' + entry.file;
+export function GLTFModel({ entry, url: directUrl }: { entry: ManifestEntry; url?: string }) {
+  const url = directUrl ?? import.meta.env.BASE_URL + 'models/' + entry.file;
   const { scene } = useGLTF(url);
   const s = entry.scale ?? 1;
   const rot = (entry.rotation ?? [0, 0, 0]).map((d) => (d * Math.PI) / 180) as [number, number, number];
@@ -58,11 +59,43 @@ function GLTFModel({ entry }: { entry: ManifestEntry }) {
  */
 export function ModelOrPrimitive({ name, children }: { name: string; children: ReactNode }) {
   const manifest = useManifest();
+  // 1) model importat la rulare (panoul „Modele CAD”) are prioritate
+  const rt = useModelStore((s) => s.models.find((m) => m.objectId === name && m.visible));
+  const rtUrl = useModelStore((s) => (rt ? s.urls[rt.id] : undefined));
+  if (rt && rtUrl)
+    return (
+      <Suspense fallback={children}>
+        <GLTFModel entry={{ file: rt.fileName, scale: rt.scale, position: rt.position, rotation: rt.rotation }} url={rtUrl} />
+      </Suspense>
+    );
+  // 2) model din public/models (manifest.json)
   const entry = manifest[name];
   if (!entry) return <>{children}</>;
   return (
     <Suspense fallback={children}>
       <GLTFModel entry={entry} />
     </Suspense>
+  );
+}
+
+/** modele importate cu plasare liberă (objectId = 'CUSTOM') */
+export function CustomModels({ Selectable }: { Selectable: (p: { id: string; name: string; children: ReactNode }) => ReactNode }) {
+  const all = useModelStore((s) => s.models);
+  const models = all.filter((m) => m.objectId === 'CUSTOM');
+  const urls = useModelStore((s) => s.urls);
+  return (
+    <>
+      {models.map((m) =>
+        urls[m.id] ? (
+          <Selectable key={m.id} id={m.id} name={m.name}>
+            <group visible={m.visible}>
+              <Suspense fallback={null}>
+                <GLTFModel entry={{ file: m.fileName, scale: m.scale, position: m.position, rotation: m.rotation }} url={urls[m.id]} />
+              </Suspense>
+            </group>
+          </Selectable>
+        ) : null,
+      )}
+    </>
   );
 }

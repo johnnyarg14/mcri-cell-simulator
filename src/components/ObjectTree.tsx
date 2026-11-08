@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { buildObjectTree, type TreeNode } from '../scene/objects';
 import { useSimStore, type TreeFolder } from '../store/useSimStore';
 import { engine } from '../sim/engine';
+import { useModelStore } from '../store/useModelStore';
 
 const ICONS: Record<string, string> = {
   robot: '🤖',
@@ -26,6 +27,7 @@ const ICONS: Record<string, string> = {
   estop: '🔴',
   marking: '▭',
   product: '●',
+  model: '◆',
 };
 
 function Node({ node, depth }: { node: TreeNode; depth: number }) {
@@ -103,13 +105,19 @@ export function ObjectTree() {
     });
     return [grp('pallet', 'Paleți', 'PRODUCTS_PALLETS'), grp('bucket', 'Găleți 5 gal', 'PRODUCTS_BUCKETS'), grp('sheet', 'Foi intermediare', 'PRODUCTS_SHEETS')];
   }, [version]);
+  const allModels = useModelStore((s) => s.models);
+  const customModels = useMemo(() => allModels.filter((m) => m.objectId === 'CUSTOM'), [allModels]);
+  const equipment = useMemo(
+    () => [...tree.Echipamente, ...(customModels.length ? [{ id: 'CUSTOM_MODELS', name: 'Modele CAD importate', kind: 'group', children: customModels.map((m) => ({ id: m.id, name: m.name, kind: 'model' })) }] : [])],
+    [tree, customModels],
+  );
   const folders: TreeFolder[] = ['Roboți', 'Conveioare', 'Echipamente', 'Produse', 'Siguranță'];
   return (
     <div className="w-[300px] shrink-0 flex flex-col bg-ps-panel border-r border-ps-border">
       <div className="ps-title">Object Tree</div>
       <div className="flex-1 overflow-auto text-xs">
         {folders.map((f) => (
-          <Folder key={f} name={f} nodes={f === 'Produse' ? products : tree[f]} count={f === 'Produse' ? engine.products.size : undefined} />
+          <Folder key={f} name={f} nodes={f === 'Produse' ? products : f === 'Echipamente' ? equipment : tree[f]} count={f === 'Produse' ? engine.products.size : undefined} />
         ))}
       </div>
     </div>

@@ -4,6 +4,9 @@ import { fromWPR, toolPoseDown } from '../kinematics/fk';
 import { engine } from '../sim/engine';
 import { useSimStore } from '../store/useSimStore';
 import { buildObjectTree, findNode } from '../scene/objects';
+import { ProgramPanel } from './ProgramPanel';
+import { ModelEditor, ModelsPanel } from './ModelsPanel';
+import { useModelStore } from '../store/useModelStore';
 
 function Row({ k, v, mono = true }: { k: string; v: React.ReactNode; mono?: boolean }) {
   return (
@@ -404,11 +407,24 @@ function StaticProps({ id, name }: { id: string; name: string }) {
   );
 }
 
+function ModelProps({ id }: { id: string }) {
+  const m = useModelStore((s) => s.models.find((x) => x.id === id));
+  if (!m) return null;
+  return (
+    <Section title="Model CAD importat">
+      <ModelEditor m={m} />
+    </Section>
+  );
+}
+
 export function PropertiesPanel() {
   const selectedId = useSimStore((s) => s.selectedId);
+  const rightTab = useSimStore((s) => s.rightTab);
+  const setRightTab = useSimStore((s) => s.setRightTab);
+  const customModel = useModelStore((s) => (selectedId ? s.models.find((m) => m.id === selectedId) : undefined));
   const tree = useMemo(() => buildObjectTree(), []);
   const node = selectedId ? findNode(tree, selectedId) : null;
-  const name = node?.name ?? (selectedId ? engine.products.get(selectedId)?.id : undefined) ?? selectedId ?? '';
+  const name = node?.name ?? customModel?.name ?? (selectedId ? engine.products.get(selectedId)?.id : undefined) ?? selectedId ?? '';
   let body: React.ReactNode = <div className="px-2 py-3 text-ps-muted">Selectează un obiect din Object Tree sau din scenă.</div>;
   if (selectedId) {
     if (ROBOTS.some((r) => r.id === selectedId || r.tool.id === selectedId)) body = <RobotProps id={ROBOTS.find((r) => r.id === selectedId || r.tool.id === selectedId)!.id} />;
@@ -417,17 +433,36 @@ export function PropertiesPanel() {
     else if (PALLET_LINE.zones.some((z) => z.id === selectedId)) body = <PalletLineProps zoneId={selectedId} />;
     else if (Object.values(STATIONS).some((s) => s.id === selectedId)) body = <StationProps id={selectedId} />;
     else if (/^(BKT|SHT|PAL)_/.test(selectedId)) body = <ProductProps id={selectedId} />;
+    else if (selectedId.startsWith('MODEL_')) body = <ModelProps id={selectedId} />;
     else body = <StaticProps id={selectedId} name={name} />;
   }
+  const tabs: { id: typeof rightTab; label: string }[] = [
+    { id: 'props', label: 'Proprietăți' },
+    { id: 'program', label: 'Program' },
+    { id: 'models', label: 'Modele CAD' },
+  ];
   return (
     <div className="w-[340px] shrink-0 flex flex-col bg-ps-panel border-l border-ps-border">
-      <div className="ps-title flex items-center justify-between">
-        <span>Proprietăți</span>
-        <span className="normal-case tracking-normal text-ps-text truncate max-w-[220px]" title={name}>
-          {name}
-        </span>
+      <div className="flex border-b border-ps-border bg-ps-panel2">
+        {tabs.map((t) => (
+          <button key={t.id} className={`flex-1 px-2 py-1 text-[11px] uppercase tracking-wider font-semibold ${rightTab === t.id ? 'text-white border-b-2 border-ps-accent' : 'text-ps-muted hover:text-ps-text'}`} onClick={() => setRightTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
       </div>
-      <div className="flex-1 overflow-auto text-xs">{body}</div>
+      {rightTab === 'props' && (
+        <>
+          <div className="ps-title flex items-center justify-between">
+            <span>Obiect</span>
+            <span className="normal-case tracking-normal text-ps-text truncate max-w-[220px]" title={name}>
+              {name}
+            </span>
+          </div>
+          <div className="flex-1 overflow-auto text-xs">{body}</div>
+        </>
+      )}
+      {rightTab === 'program' && <div className="flex-1 overflow-auto">{<ProgramPanel />}</div>}
+      {rightTab === 'models' && <div className="flex-1 overflow-auto">{<ModelsPanel />}</div>}
     </div>
   );
 }

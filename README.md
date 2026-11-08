@@ -23,6 +23,23 @@ Lucrare de licență – UPB FIIR, Mecatronică și Robotică.
 
 Scurtături: `Space` Play/Pause · `→` Step · `Shift+R` Reset.
 
+### Mod Auto / Manual
+
+- **Auto** – secvența din `sequence.json` conduce roboții (depal → etichetare → inspecție → repal → înfoliere).
+- **Manual** (buton în bara de sus sau tabul **Program**) – tu conduci roboții, ca într-un teach pendant:
+  - jog pe axe (slidere) sau **Jog to target** (IK) din tabul Proprietăți, apoi **+ Locație** memorează poziția axelor în program;
+  - pași **Prindere** (ia produsele aflate sub sculă – rândul de găleți sub placa de strat, o găleată sau o foaie sub gripperul cu 4 ventuze, foaia de deasupra magaziei), **Eliberare** (așază pe conveior, pe palet – peste produsul de dedesubt – sau pe pardoseală/container), **Așteptare**;
+  - **Rulează programul** (opțional în buclă, viteză globală % și per locație); programul se salvează în browser și se poate exporta/importa ca JSON;
+  - comenzi directe: Prinde/Eliberează acum, HOME, + palet plin la S1, + palet gol la S7, + găleată pe B1, golire celulă.
+  Conveioarele și stațiile funcționează la fel în ambele moduri, așa că poți construi manual tot ciclul.
+
+### Modele CAD din aplicație (tabul „Modele CAD”)
+
+Trage un fișier `.glb`/`.gltf` peste viewport sau folosește tabul **Modele CAD**: modelul poate **înlocui** un obiect existent (ex. `EQ_VISION`,
+`ROBOT_2_MOUNT`) sau poate fi **plasat liber** ca obiect nou (apare în Object Tree → Echipamente → Modele CAD importate, selectabil în 3D).
+Pentru fiecare model setezi scara (mm / m / inch), poziția și rotația (buton „Z↑” pentru modele CAD cu Z în sus). Modelele sunt salvate în
+browser (IndexedDB) și revin la reîncărcare; butonul **manifest.json** exportă configurația pentru varianta permanentă din `public/models/`.
+
 ## Instalare și rulare
 
 ```bash

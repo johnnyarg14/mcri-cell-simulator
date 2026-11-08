@@ -21,6 +21,9 @@ interface SimStore {
   fps: number;
   statusMessage: string;
   productsVersion: number;
+  rightTab: 'props' | 'program' | 'models';
+  setRightTab(t: 'props' | 'program' | 'models'): void;
+  setMode(m: 'auto' | 'manual'): void;
   play(): void;
   pause(): void;
   stop(): void;
@@ -53,6 +56,12 @@ export const useSimStore = create<SimStore>((set, get) => ({
   fps: 0,
   statusMessage: 'Gata. Apasă Play pentru a porni simularea.',
   productsVersion: 0,
+  rightTab: 'props',
+  setRightTab: (t) => set({ rightTab: t }),
+  setMode: (m) => {
+    engine.setMode(m);
+    set({ snapshot: engine.snapshot() });
+  },
   play: () => {
     engine.resumeAuto();
     set({ playing: true, statusMessage: 'Simulare în curs' });

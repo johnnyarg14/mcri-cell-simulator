@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { CellScene } from '../scene/CellScene';
 import { useSimStore } from '../store/useSimStore';
 import type { CameraPresetId } from '../config/cell.config';
+import { useModelStore } from '../store/useModelStore';
 
 export function Viewport() {
   const { wireframe, showCollisions, showReach, showGrid, setFlag, requestView, viewRequest } = useSimStore();
@@ -11,8 +12,20 @@ export function Viewport() {
     { id: 'front', label: 'Față' },
     { id: 'side', label: 'Lateral' },
   ];
+  const addModel = useModelStore((s) => s.add);
+  const onDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files).filter((f) => /\.(glb|gltf)$/i.test(f.name));
+    if (files.length === 0) {
+      useSimStore.getState().setStatus('Acceptă doar fișiere .glb / .gltf');
+      return;
+    }
+    for (const f of files) await addModel(f, 'CUSTOM');
+    useSimStore.getState().setRightTab('models');
+    useSimStore.getState().setStatus(`${files.length} model(e) importat(e) – plasare liberă; ajustează poziția în tabul Modele CAD`);
+  };
   return (
-    <div className="flex-1 relative min-w-0 bg-[#15171b]">
+    <div className="flex-1 relative min-w-0 bg-[#15171b]" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
       <Canvas
         shadows
         dpr={[1, 1.75]}
