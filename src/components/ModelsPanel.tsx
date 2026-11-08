@@ -3,6 +3,7 @@ import { buildObjectTree } from '../scene/objects';
 import { useModelStore, type RuntimeModel } from '../store/useModelStore';
 import { useSimStore } from '../store/useSimStore';
 import { exportProject, importProject } from '../utils/project';
+import { ACCEPT_ATTR, convertToGLB, isConvertible } from '../utils/convert';
 
 /** lista id-urilor de obiecte care pot fi înlocuite cu un model glTF */
 function replaceableIds(): { id: string; name: string }[] {
@@ -42,6 +43,20 @@ export function ModelEditor({ m }: { m: RuntimeModel }) {
         <input className="ps-input flex-1" value={m.name} onChange={(e) => update(m.id, { name: e.target.value })} />
         <button className="ps-btn" title={m.visible ? 'Ascunde' : 'Afișează'} onClick={() => update(m.id, { visible: !m.visible })}>
           {m.visible ? '👁' : '◌'}
+        </button>
+        <button
+          className="ps-btn"
+          title="Descarcă fișierul .glb convertit (pentru public/models/)"
+          onClick={() => {
+            const b = useModelStore.getState().getBlob(m.id);
+            if (!b) return;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(b);
+            a.download = m.fileName;
+            a.click();
+          }}
+        >
+          ⤓
         </button>
         <button className="ps-btn" title="Șterge modelul" onClick={() => remove(m.id)}>
           ✕
@@ -117,14 +132,24 @@ export function ModelsPanel() {
   const ids = replaceableIds();
   const layout = useSimStore((s) => s.layout);
 
+  const [busy, setBusy] = useState<string | null>(null);
   const onFiles = async (files: FileList | File[]) => {
     for (const f of Array.from(files)) {
-      if (!/\.(glb|gltf)$/i.test(f.name)) {
-        setStatus(`${f.name}: acceptă doar .glb / .gltf (convertește STEP → glTF, vezi README)`);
+      if (!isConvertible(f.name)) {
+        setStatus(`${f.name}: format neacceptat (acceptă ${ACCEPT_ATTR})`);
         continue;
       }
-      await add(f, target);
-      setStatus(`Model importat: ${f.name}${target === 'CUSTOM' ? ' (plasare liberă la origine)' : ` → ${target}`}`);
+      try {
+        setBusy(`${f.name}: pregătire…`);
+        const r = await convertToGLB(f, (m) => setBusy(`${f.name}: ${m}`));
+        const glb = new File([r.blob], r.fileName, { type: 'model/gltf-binary' });
+        await add(glb, target, { name: f.name.replace(/\.[^.]+$/, ''), scale: r.unitScale });
+        setStatus(`Model importat: ${f.name} (${r.info})${target === 'CUSTOM' ? ' – plasare liberă' : ` → ${target}`}`);
+      } catch (e) {
+        setStatus(`Eroare la ${f.name}: ${(e as Error).message}`);
+      } finally {
+        setBusy(null);
+      }
     }
   };
 
@@ -175,14 +200,22 @@ export function ModelsPanel() {
             onFiles(e.dataTransfer.files);
           }}
         >
-          Trage fișiere .glb aici sau click pentru a alege
-          <br />
-          <span className="text-[10px]">(se pot trage și direct peste viewport-ul 3D)</span>
+          {busy ? (
+            <span className="text-ps-accent">⏳ {busy}</span>
+          ) : (
+            <>
+              Trage fișiere aici sau click pentru a alege
+              <br />
+              <span className="text-[10px]">STEP / STP / IGES / BREP · STL / OBJ / PLY / 3MF / DAE / FBX · GLB / GLTF – conversia se face în browser</span>
+              <br />
+              <span className="text-[10px]">(se pot trage și direct peste viewport-ul 3D)</span>
+            </>
+          )}
         </div>
         <input
           ref={fileRef}
           type="file"
-          accept=".glb,.gltf"
+          accept={ACCEPT_ATTR}
           multiple
           className="hidden"
           onChange={(e) => {
@@ -211,12 +244,12 @@ export function ModelsPanel() {
       {models.map((m) => (
         <ModelEditor key={m.id} m={m} />
       ))}
-      <div className="ps-title">STEP → glTF (pe scurt)</div>
+      <div className="ps-title">Conversie în browser</div>
       <div className="px-2 py-1 text-[10px] text-ps-muted space-y-1">
-        <div>• FreeCAD 0.21+: Import STEP → Export glTF (.glb). Unități mm → scară 1.</div>
-        <div>• CadQuery: <code>cq.exporters.export(shape, "x.glb")</code>.</div>
-        <div>• Blender: Import STL/OBJ → Export glTF 2.0 (bifează „+Y up”).</div>
-        <div>• Modele cu Z în sus: butonul „Z↑” setează rotația −90° pe X.</div>
+        <div>• STEP / IGES / BREP: triangulare cu OpenCascade (WebAssembly, ~7 MB încărcați doar la prima conversie); culorile per față sunt păstrate; unități mm.</div>
+        <div>• STL / OBJ / PLY / 3MF / DAE / FBX: loaderele Three.js. STL/OBJ nu au unități – verifică scara (mm / m / inch).</div>
+        <div>• Rezultatul este GLB; butonul ⤓ îl descarcă pentru <code>public/models/</code>. Modele CAD cu Z în sus: butonul „Z↑”.</div>
+        <div>• Fișiere STEP mari (&gt; 50 MB) pot dura zeci de secunde; simplifică ansamblurile în CAD înainte.</div>
       </div>
     </div>
   );

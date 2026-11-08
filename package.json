@@ -9,11 +9,16 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "check:ik": "tsx scripts/check-kinematics.ts",
-    "check:sim": "tsx scripts/check-sim.ts"
+    "check:sim": "tsx scripts/check-sim.ts",
+    "copy:occt": "node scripts/copy-occt.mjs",
+    "predev": "node scripts/copy-occt.mjs",
+    "prebuild": "node scripts/copy-occt.mjs",
+    "postinstall": "node scripts/copy-occt.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
+    "occt-import-js": "^0.0.23",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "three": "^0.187.0",

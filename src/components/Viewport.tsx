@@ -3,6 +3,7 @@ import { CellScene } from '../scene/CellScene';
 import { useSimStore } from '../store/useSimStore';
 import type { CameraPresetId } from '../config/cell.config';
 import { useModelStore } from '../store/useModelStore';
+import { convertToGLB, isConvertible, ACCEPT_ATTR } from '../utils/convert';
 
 export function Viewport() {
   const { wireframe, showCollisions, showReach, showGrid, setFlag, requestView, viewRequest, gizmo, setGizmo, layout } = useSimStore();
@@ -15,14 +16,22 @@ export function Viewport() {
   const addModel = useModelStore((s) => s.add);
   const onDrop = async (e: React.DragEvent) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files).filter((f) => /\.(glb|gltf)$/i.test(f.name));
+    const files = Array.from(e.dataTransfer.files).filter((f) => isConvertible(f.name));
+    const setStatus = useSimStore.getState().setStatus;
     if (files.length === 0) {
-      useSimStore.getState().setStatus('Acceptă doar fișiere .glb / .gltf');
+      setStatus(`Formate acceptate: ${ACCEPT_ATTR}`);
       return;
     }
-    for (const f of files) await addModel(f, 'CUSTOM');
     useSimStore.getState().setRightTab('models');
-    useSimStore.getState().setStatus(`${files.length} model(e) importat(e) – plasare liberă; ajustează poziția în tabul Modele CAD`);
+    for (const f of files) {
+      try {
+        const r = await convertToGLB(f, (m) => setStatus(`${f.name}: ${m}`));
+        await addModel(new File([r.blob], r.fileName, { type: 'model/gltf-binary' }), 'CUSTOM', { name: f.name.replace(/\.[^.]+$/, ''), scale: r.unitScale });
+        setStatus(`Model importat: ${f.name} (${r.info}) – plasare liberă; ajustează poziția în tabul Modele CAD`);
+      } catch (err) {
+        setStatus(`Eroare la ${f.name}: ${(err as Error).message}`);
+      }
+    }
   };
   return (
     <div className="flex-1 relative min-w-0 bg-[#15171b]" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>

@@ -154,7 +154,18 @@ Aplicația înlocuiește automat primitiva unui obiect cu un model glTF dacă ac
 Id-uri utile: `ROBOT_1`, `ROBOT_2`, `TOOL_1`, `TOOL_2`, `ROBOT_1_MOUNT`, `ROBOT_2_MOUNT`, `CDLR_S1`…`CDLR_S10`, `CONV_B1`, `CONV_B2`, `CONV_B3`,
 `EQ_LABELER`, `EQ_VISION`, `EQ_PUSHER`, `EQ_CHUTE`, `EQ_WRAPPER`, `EQ_SHEET_MAG`, `EQ_SHEET_BIN`.
 
-### Conversie STEP → glTF
+### Conversie direct în aplicație (STEP, STL, OBJ, PLY, 3MF, DAE, FBX, IGES, BREP)
+
+Nu mai e nevoie de conversie manuală: selectezi sau tragi direct fișierul `.stp` / `.stl` / etc. în tabul **Modele CAD** sau peste viewport.
+
+- **STEP / IGES / BREP** sunt triangulate în browser cu OpenCascade compilat în WebAssembly ([occt-import-js](https://github.com/kovacsv/occt-import-js));
+  runtime-ul (~7 MB) se descarcă o singură dată, la prima conversie. Culorile per față din STEP sunt păstrate; ieșirea este în mm.
+- **STL / OBJ / PLY / 3MF / DAE / FBX** sunt citite cu loaderele Three.js. STL și OBJ nu poartă unități: verifică scara (mm / m / inch) după import.
+- Rezultatul este un GLB salvat în browser; butonul ⤓ de lângă model îl descarcă pentru `public/models/`.
+- Fișierele WASM sunt copiate automat în `public/occt/` la `npm install` / `npm run build` (script `scripts/copy-occt.mjs`).
+- Ansamblurile STEP mari (> 50 MB, mii de corpuri) pot dura zeci de secunde și produc modele grele; simplifică-le în CAD (fără șuruburi, filete).
+
+### Conversie externă (alternativă)
 
 1. **FreeCAD (0.21+)** – `File → Import` STEP, selectează corpurile, `File → Export → glTF (*.glb)`. Verifică unitățile (FreeCAD exportă în mm).
 2. **CadQuery / OCP** (Python):
