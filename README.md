@@ -1,57 +1,213 @@
 # MCRI Cell Simulator
 
-Mockup funcțional de simulator de celulă robotizată, în stil Siemens Process Simulate, realizat ca aplicație web statică (fără backend).
+Simulator de celulă robotizată în stil Siemens Process Simulate, realizat ca aplicație web statică (fără backend).
 Modelează celula **MCRI de depaletizare / repaletizare găleți de 5 gal** cu etichetare inline și inspecție vizuală, țintă **10 găleți/min**
-(referință: clip Motion Controls Robotics, YouTube `SWpIWw1aGKk`).
+(referință: clip Motion Controls Robotics, YouTube `SWpIWw1aGKk`), dar permite și construirea unei **celule proprii din modele CAD** și
+**animarea ei cadru cu cadru**.
 
 Lucrare de licență – UPB FIIR, Mecatronică și Robotică.
 
-**Demo (GitHub Pages):** https://johnnyarg14.github.io/mcri-cell-simulator/ (activ după primul push și activarea Pages – vezi [Publicare](#publicare-pe-github-pages)).
+**Aplicația online:** https://johnnyarg14.github.io/mcri-cell-simulator/
 
 ![MCRI Cell Simulator](docs/screenshot.png)
 
-## Funcționalități
+## Cuprins
 
-| Zonă | Conținut |
+1. [Pornire rapidă](#pornire-rapidă)
+2. [Interfața – toate funcțiile](#interfața--toate-funcțiile)
+3. [Tutorial A – simularea celulei MCRI](#tutorial-a--simularea-celulei-mcri)
+4. [Tutorial B – simulare manuală (program robot, teach pendant)](#tutorial-b--simulare-manuală-program-robot-teach-pendant)
+5. [Tutorial C – celulă proprie din modele CAD](#tutorial-c--celulă-proprie-din-modele-cad)
+6. [Tutorial D – animație cadru cu cadru](#tutorial-d--animație-cadru-cu-cadru)
+7. [Tutorial E – import și conversie CAD (STEP, STL, …)](#tutorial-e--import-și-conversie-cad-step-stl-)
+8. [Tutorial F – export pentru lucrare și salvarea proiectului](#tutorial-f--export-pentru-lucrare-și-salvarea-proiectului)
+9. [Scurtături de tastatură](#scurtături-de-tastatură)
+10. [Instalare și rulare](#instalare-și-rulare) · [Structura proiectului](#structura-proiectului) · [Scena](#scena-primitive-parametrizate) · [Cinematică](#cinematică) · [Simulare](#simulare) · [Secvența](#secvența-srcconfigsequencejson) · [Modele CAD permanente](#modele-cad-step--gltf) · [Publicare](#publicare-pe-github-pages) · [Limitări](#limitări-cunoscute-mockup)
+
+---
+
+## Pornire rapidă
+
+1. Deschide https://johnnyarg14.github.io/mcri-cell-simulator/ (sau local `npm install && npm run dev`).
+2. Apasă **▶ Play**. Robotul 1 depaletizează rând cu rând, gălețile pleacă pe conveior spre etichetator și inspecție, Robotul 2 le repaletizează, paletul plin merge la infoliator.
+3. Crește viteza la **8×**, urmărește debitul **găleți/min** din bara de sus și operațiile din **Sequence Editor** (Gantt).
+4. Click pe un obiect în 3D sau în **Object Tree** → proprietățile lui apar în dreapta.
+
+Totul se salvează în browser (programe, animație, modele importate); pentru a muta lucrul pe alt calculator folosește **Salvează proiect**.
+
+## Interfața – toate funcțiile
+
+### Bara de sus
+| Element | Funcție |
 | --- | --- |
-| Bară sus | Play / Pause / Stop / Step, viteză 0,25×–8×, ceas simulare `mm:ss.d`, debit live găleți/min (+ deficit/excedent față de țintă), găleți produse, rebuturi, paleți livrați, Reset, export PNG / JSON / CSV, import secvență JSON |
-| Object Tree (300 px) | Foldere Roboți / Conveioare / Echipamente / Produse / Siguranță; click = selectare + evidențiere în 3D; ochi = ascundere |
-| Viewport 3D | Grilă pardoseală 1 m, axe + gizmo, OrbitControls, vederi Iso / Sus / Față / Lateral, toggle wireframe, toggle coliziuni, toggle anvelopă de lucru (reach) |
-| Proprietăți (340 px) | Roboți: slidere J1–Jn cu limitele din catalog, TCP (X Y Z W P R) prin cinematică directă, „Jog to target” prin cinematică inversă, puncte învățate (+ învățare puncte noi). Conveioare: viteză, Run / Stop / Accumulate, stare opritoare PCS19 și fotocelule. Stații: timpi și contoare. |
-| Sequence Editor (220 px, pliabil) | Gantt cu o bandă per resursă (Robot 1, Robot 2, CDLR paleți, B1, B3, etichetator, vision, infoliator), operații colorate, cursor de timp, zoom (slider / Ctrl+scroll), **click pe o operație = salt determinist al simulării la momentul ei** |
-| Bară de stare | FPS, număr de corpuri, mesaje (ex. `Coliziune: Gripper R1 ↔ Ghidaj lateral B1`) |
+| **Celula MCRI / Celulă goală** | Comută între celula completă din `cell.config.ts` și o pardoseală goală pentru propriile modele CAD. |
+| **▶ Play · ❚❚ Pause · ■ Stop · ⏭ Step** | Rulează / oprește simularea; Stop revine la 00:00; Step avansează 0,1 s (5 pași de 20 ms). |
+| **↺ Reset** | Reface starea inițială (paleți la S1/S3, palet gol la S7). |
+| **Auto / Manual** | Auto: roboții urmează `sequence.json`. Manual: roboții sunt conduși de tine (jog + programe). |
+| **Viteză** | 0,25× … 8× timp real. |
+| **t** | Ceasul simulării `mm:ss.d`. |
+| **găleți/min** | Debit live pe ultimele 60 s și diferența Δ față de ținta (10/min). Verde = la țintă, galben = deficit. |
+| **produse · rebut · paleți** | Găleți repaletizate, respinse la inspecție, paleți livrați. |
+| **📷 PNG** | Captură a viewport-ului 3D. |
+| **⤓ JSON / ⤓ CSV** | Export secvență + operații înregistrate / timpi de ciclu (vezi Tutorial F). |
+| **⤒ Import** | Încarcă o secvență JSON editată (sau exportată anterior). |
 
-Scurtături: `Space` Play/Pause · `→` Step · `Shift+R` Reset.
+### Panoul stâng – Object Tree
+Foldere **Roboți / Conveioare / Echipamente / Produse / Siguranță** (în celula goală: doar **Modele CAD importate**, cu ierarhia părinte → copil).
+Click = selectare + chenar portocaliu în 3D; **👁** ascunde/afișează obiectul; ▸/▾ expandează. Folderul Produse se actualizează live
+(paleți, găleți cu ✓ = etichetată, REBUT, foi).
 
-### Mod Auto / Manual
+### Viewport 3D
+| Buton | Funcție |
+| --- | --- |
+| **Iso / Sus / Față / Lateral** | Vederi presetate. Mouse: rotire (stânga), pan (dreapta), zoom (scroll). |
+| **Wire** | Wireframe pe toată scena. |
+| **Colizii** | Detecție coliziuni gripper ↔ structuri (gard, ghidaje, stații…): gripper roșu, corpul lovit încadrat, mesaj în bara de stare. |
+| **Reach** | Anvelopa de lucru a roboților (sferă + cerc la sol cu raza din catalog). |
+| **Grilă** | Grila de pardoseală la 1 m (secțiuni la 5 m). |
+| **Gizmo: Mută (G) / Rotește (E) / Scară / Oprit** | Manipulator 3D pentru modelul CAD selectat (snap 10 mm / 5°). |
+| **Gizmo axe** (colț dreapta-jos) | Orientarea axelor; click pe o axă aliniază camera. |
+| Drag & drop fișiere | Importă modele CAD direct în scenă (Tutorial E). |
 
-- **Auto** – secvența din `sequence.json` conduce roboții (depal → etichetare → inspecție → repal → înfoliere).
-- **Manual** (buton în bara de sus sau tabul **Program**) – tu conduci roboții, ca într-un teach pendant:
-  - jog pe axe (slidere) sau **Jog to target** (IK) din tabul Proprietăți, apoi **+ Locație** memorează poziția axelor în program;
-  - pași **Prindere** (ia produsele aflate sub sculă – rândul de găleți sub placa de strat, o găleată sau o foaie sub gripperul cu 4 ventuze, foaia de deasupra magaziei), **Eliberare** (așază pe conveior, pe palet – peste produsul de dedesubt – sau pe pardoseală/container), **Așteptare**;
-  - **Rulează programul** (opțional în buclă, viteză globală % și per locație); programul se salvează în browser și se poate exporta/importa ca JSON;
-  - comenzi directe: Prinde/Eliberează acum, HOME, + palet plin la S1, + palet gol la S7, + găleată pe B1, golire celulă.
-  Conveioarele și stațiile funcționează la fel în ambele moduri, așa că poți construi manual tot ciclul.
+### Panoul drept – tab **Proprietăți**
+- **Robot**: model, axe/sarcină/rază, stare, operația curentă, produse transportate, coliziune; **slidere J1–Jn** cu limitele și vitezele din catalog
+  (mișcarea lor pune robotul în mod manual); **TCP** (X Y Z W P R, convenție Z în sus) din cinematica directă; **Jog to target** – introduci X Y Z W P R
+  și robotul ajunge acolo prin cinematică inversă (mesaj de convergență / punct inaccesibil); **Puncte învățate** din config (click = jog) și
+  puncte proprii (**+ Învață** memorează axele curente); lanțul cinematic.
+- **Conveior găleți**: BF/TOR, lungime, găleți pe conveior, slider viteză, **Run / Stop / Accumulate**, lista **opritoarelor PCS19** (LED închis/deschis)
+  și a **fotocelulelor** (LED ocupat/liber).
+- **Linie paleți CDLR**: viteză, mod, ocuparea celor 10 zone.
+- **Stații**: etichetator (timp, stare, etichete aplicate), inspecție (timp, rată rebut, inspectate/respinse), pusher/tobogan, infoliator (progres),
+  magazie foi, container foi uzate.
+- **Produse**: id, stare, poziție, conveior/abscisă, etichetată/inspectată, timpi de depal/repal.
+- **Model CAD importat**: nume, atribuire, părinte, scară, poziție, rotație, vizibilitate, descărcare GLB.
 
-### Celulă goală + propriile modele CAD + animație pe cadre
+### Panoul drept – tab **Program** (mod manual)
+Selector robot, comutator Auto/Manual, **comenzi directe** (Prinde acum, Eliberează acum, HOME, + palet plin la S1, + palet gol la S7, + găleată pe B1,
+golire celulă), **lista pașilor** programului (▶ mută robotul la locație, ⟲ actualizează locația cu poziția curentă, ▲▼ reordonare, ✕ ștergere,
+viteză % per locație, durată pentru prindere/eliberare/așteptare), butoane **+ Locație / + Prindere / + Eliberare / + Așteptare**,
+**buclă**, **viteză globală**, **▶ Rulează programul / ■ Oprește**, export/import JSON, ștergere program.
 
-Butonul **Celulă goală** (bara de sus) ascunde celula MCRI și lasă doar pardoseala: aici construiești celula ta din modele glTF.
+### Panoul drept – tab **Modele CAD**
+**Salvează / Deschide proiect** (`.mcri.json`), selector „Atribuie la” (înlocuiește un obiect existent sau plasare liberă), zonă de drag & drop /
+selectare fișiere (STEP, STP, IGES, BREP, STL, OBJ, PLY, 3MF, DAE, FBX, GLB, GLTF), lista modelelor importate cu editor complet, export **manifest.json**.
 
-- **Plasare**: trage `.glb` peste viewport; mută/rotește cu **gizmo** (G = mutare, E = rotire, snap 10 mm / 5°) sau numeric din tabul Modele CAD.
-- **Ierarhie**: fiecare model poate avea un **părinte** (poziția/rotația devin relative la părinte). Așa articulezi un robot din piese:
-  bază → braț → antebraț → sculă; rotind părintele se mișcă tot lanțul.
-- **Animație pe cadre** (panoul de jos, tabul *Animație*): timeline cu fps și lungime, piste per obiect, chei ◆ (poziție, rotație, scară, vizibilitate;
-  pentru roboții MCRI – valorile axelor), interpolare liniară sau lină, scrub cu mouse-ul, drag al cheilor, redare în buclă, pas cadru cu cadru
-  (`,` / `.`), **auto-key** când muți un obiect cu gizmo-ul, export/import JSON. Funcționează și în celula MCRI (ex. keyframes pe Robot 1 și pe un
-  model importat).
-- **Proiect**: *Salvează proiect* scrie un singur fișier `.mcri.json` cu layout, modele (încorporate), animație și programele robot; *Deschide proiect* îl reîncarcă pe alt calculator.
+### Panoul de jos
+- **Sequence Editor** (celula MCRI): Gantt cu o bandă per resursă (Robot 1, Robot 2, CDLR paleți, B1, B3, etichetator, vision, infoliator),
+  operații colorate (cu sub-benzi la suprapuneri), cursor de timp, zoom (slider / Ctrl+scroll), **Urmărește**, tooltip cu durata,
+  **click pe o operație = salt determinist al simulării la momentul ei**.
+- **Animație (cadre)**: editorul de keyframes (Tutorial D).
+- ▾ pliază panoul.
 
-### Modele CAD din aplicație (tabul „Modele CAD”)
+### Bara de stare
+FPS, numărul de corpuri din scenă, pași simulați, obiectul selectat, ultimul mesaj (evenimente ale celulei, erori IK, coliziuni cu ⚠).
 
-Trage un fișier `.glb`/`.gltf` peste viewport sau folosește tabul **Modele CAD**: modelul poate **înlocui** un obiect existent (ex. `EQ_VISION`,
-`ROBOT_2_MOUNT`) sau poate fi **plasat liber** ca obiect nou (apare în Object Tree → Echipamente → Modele CAD importate, selectabil în 3D).
-Pentru fiecare model setezi scara (mm / m / inch), poziția și rotația (buton „Z↑” pentru modele CAD cu Z în sus). Modelele sunt salvate în
-browser (IndexedDB) și revin la reîncărcare; butonul **manifest.json** exportă configurația pentru varianta permanentă din `public/models/`.
+---
+
+## Tutorial A – simularea celulei MCRI
+
+1. **Celula MCRI** + **Auto** (implicite). Apasă **▶ Play**.
+2. Fluxul: paletul plin de la **S3** este depaletizat de **Robot 1** (un rând de 4 găleți pe ciclu, foile intermediare merg în container) → gălețile
+   pleacă pe **B1** prin tunel → **etichetator** (2 s) → **inspecție vizuală** (1,5 s; 1 din 25 respinsă → pusher → tobogan) → curba **B2** → **B3**
+   retur → **Robot 2** repaletizează pe paletul gol de la **S7** (foaie intermediară între niveluri) → palet plin → **S8** → **infoliator** (60 s) → ieșire.
+   Paletul golit la S3 se transferă automat la S7, iar un palet plin nou apare la S1 după 30 s.
+3. **Modifică parametrii din aplicație**: selectează un conveior → viteză / Run / Stop / Accumulate; selectează un robot → jog pe axe (simularea
+   trece în pauză, Play o reia).
+4. **Modifică procesul din JSON**: editează `src/config/sequence.json` (durate pași, timpi stații, `rejectEvery`) și reîncarcă, sau **⤒ Import**.
+   Layout-ul, vitezele și cotele sunt în `src/config/cell.config.ts`.
+5. **Analizează**: Gantt-ul arată așteptările (benzi gri), click pe orice operație sare exact acolo; **CSV** dă timpii de ciclu pe găleată.
+6. **Coliziuni**: nu apar în secvența automată; testează cu Jog to target (ex. Robot 1 → X 2600, Y −1500, Z 800, W 90, P 0, R 90).
+
+## Tutorial B – simulare manuală (program robot, teach pendant)
+
+1. Apasă **Manual** (bara de sus) – se deschide tabul **Program**. Roboții nu mai urmează secvența; conveioarele și stațiile funcționează normal.
+2. Populează celula dacă e nevoie: **+ Palet plin la S1**, **+ Palet gol la S7**, **+ Găleată pe B1**.
+3. Selectează robotul (selectorul din tab sau click pe el). În tabul **Proprietăți** adu-l deasupra produsului: slidere J1–Jn sau **Jog to target**
+   (ex. Robot 2 deasupra găleții de la capătul B3: X −100, Y −3100, Z 1132 + 250). Revino în **Program** → **+ Locație** (pre-pick).
+4. Coboară (Z cu 250 mm mai jos) → **+ Locație** (pick) → **+ Prindere**.
+5. Ridică → **+ Locație**; mergi deasupra paletului (ex. X −1700, Y −4400, Z 1300) → **+ Locație**; coboară → **+ Locație** → **+ Eliberare**;
+   retrage → **+ Locație**.
+6. **▶ Rulează programul**; bifează **buclă** pentru ciclu continuu și reglează **viteza %**. Pasul curent se evidențiază, Gantt-ul înregistrează pașii.
+7. Corecturi: ▶ lângă un pas mută robotul acolo; ⟲ rescrie locația cu poziția curentă; ▲▼ reordonează. Programul se salvează automat în browser;
+   ⤓ / ⤒ export/import JSON.
+8. Reguli de prindere/eliberare: **Prindere** ia tot ce este sub sculă (rândul de găleți sub placa de strat a Robotului 1; o găleată sau o foaie sub
+   gripperul cu 4 ventuze al Robotului 2; foaia de deasupra magaziei). **Eliberare** așază produsul pe conveior (dacă e deasupra lui), pe palet
+   (peste produsul de dedesubt – nivelurile se formează singure) sau îl lasă să cadă pe pardoseală / în containerul de foi.
+   Un palet umplut manual cu 36 de găleți este considerat complet și pleacă spre infoliator.
+9. **Auto** readuce secvența automată (roboții își reiau sarcinile din starea curentă).
+
+## Tutorial C – celulă proprie din modele CAD
+
+1. Apasă **Celulă goală**. Rămâne pardoseala cu grila de 1 m; tabul **Modele CAD** se deschide automat.
+2. Trage fișierele CAD (`.stp`, `.stl`, …) peste viewport sau folosește zona de import. Fiecare model apare la origine, în **Object Tree**.
+3. **Poziționare**: selectează modelul (click în 3D sau în arbore) și mută-l cu **gizmo** (G mutare, E rotire, snap 10 mm / 5°) sau numeric
+   (Poziție X Y Z în mm, Rotație în grade). Pentru CAD cu Z în sus apasă **Z↑**. Verifică **scara** (STEP = mm; STL/OBJ fără unități → mm / m / inch).
+4. **Ierarhie** (pentru mecanisme): la piesa copil alege **Părinte**. Poziția/rotația copilului devin relative la părinte și se mută odată cu el.
+   Un robot din CAD: bază (fix) → braț (părinte: bază) → antebraț (părinte: braț) → sculă (părinte: antebraț). Pivotul rotației este originea
+   fiecărui model, deci exportă piesele din CAD cu originea pe axa articulației (sau compensează din Poziție).
+5. **Vizibilitate** (👁) pentru variante de layout; **✕** șterge modelul; **⤓** descarcă GLB-ul convertit.
+6. Salvează totul cu **💾 Salvează proiect** (un singur fișier `.mcri.json` cu modelele încorporate) – vezi Tutorial F.
+
+Poți folosi modelele și în **celula MCRI**: la import alege „Atribuie la” un obiect existent (ex. `EQ_VISION`, `ROBOT_2_MOUNT`, `CDLR_S3`) și modelul
+înlocuiește primitiva, păstrând poziția din config; sau lasă „plasare liberă” pentru echipamente suplimentare.
+
+## Tutorial D – animație cadru cu cadru
+
+Editorul din panoul de jos, tabul **Animație (cadre)**, funcționează atât în celula goală, cât și în celula MCRI.
+
+1. Setează **fps** (implicit 25) și **lungimea** în cadre (implicit 250 = 10 s).
+2. Selectează un obiect (model importat; sau Robot 1 / Robot 2 în celula MCRI). La cadrul **0** pune-l în poziția de start și apasă **◆ + Cheie**.
+3. Mergi la alt cadru (câmpul „cadru”, click/drag în timeline, `,` / `.`), mută obiectul (gizmo sau câmpuri numerice; pentru roboți – sliderele axelor),
+   apasă **◆ + Cheie**. Cu **auto-key** bifat, fiecare mutare cu gizmo-ul creează/actualizează singură cheia la cadrul curent.
+4. **▶** (sau Space) redă animația; **buclă** pentru repetare; **lin** comută între interpolare liniară și smoothstep (accelerare/decelerare).
+5. Editare: trage un romb ◆ pentru a muta cheia în timp; **◇ − Cheie** șterge cheia de la cadrul curent; **✕ Pistă** șterge toată animația obiectului;
+   Ctrl+scroll = zoom pe timeline, scroll = derulare.
+6. O cheie memorează poziție, rotație, scară și vizibilitate (obiecte) sau valorile axelor (roboți MCRI). Pentru un mecanism ierarhic animezi
+   fiecare piesă pe propria pistă; copiii urmează automat părinții.
+7. **⤓ / ⤒** exportă/importă animația ca JSON; 🗑 șterge tot. Animația este inclusă și în fișierul de proiect.
+
+Sfat: pentru o secvență de proces (ex. pick & place) pune chei la fiecare „poziție importantă” (pre-pick, pick, lift, pre-place, place) la intervale
+egale cu timpii reali ai mișcării (ex. 1,5 s = 37 cadre la 25 fps) și lasă interpolarea „lin” să genereze mișcarea.
+
+## Tutorial E – import și conversie CAD (STEP, STL, …)
+
+Formate acceptate direct: **STEP / STP / IGES / IGS / BREP** (OpenCascade WebAssembly, runtime ~7 MB descărcat o singură dată), **STL / OBJ / PLY /
+3MF / DAE / FBX** (loadere Three.js), **GLB / GLTF** (nativ). Conversia în GLB se face în browser; progresul apare în panou.
+
+- STEP păstrează culorile per față și structura de corpuri; unitățile sunt mm.
+- STL/OBJ nu au unități: după import alege **mm / m / inch**.
+- Modele cu Z în sus (majoritatea CAD-urilor): **Z↑**.
+- Fișiere mari (> 50 MB, mii de corpuri) → zeci de secunde și scene grele: simplifică în CAD (fără șuruburi, filete, găuri mici) sau exportă sub-ansambluri.
+- Modelele importate se păstrează în browser (IndexedDB); pentru o configurație permanentă în repo copiază GLB-urile (⤓) în `public/models/` și
+  exportă **manifest.json** (vezi [Modele CAD permanente](#modele-cad-step--gltf)).
+
+## Tutorial F – export pentru lucrare și salvarea proiectului
+
+| Buton | Fișier | Conținut |
+| --- | --- | --- |
+| 📷 PNG | `mcri_viewport_<data>.png` | Captura viewport-ului (ascunde grila / folosește vederea dorită înainte). |
+| ⤓ JSON | `mcri_secventa_<data>.json` | Secvența încărcată + toate operațiile din Gantt (resursă, nume, start, end) + metrici. |
+| ⤓ CSV | `mcri_timpi_ciclu_<data>.csv` | Pe găleată: t_depal, t_etichetare, t_inspecție, t_repal, ciclu total, rebut; plus debit mediu/live, rebuturi, paleți (separator `;`, UTF-8, se deschide direct în Excel). |
+| Program ⤓ | `program_ROBOT_x.json` | Programul manual al robotului. |
+| Animație ⤓ | `animatie.json` | Pistele și cheile de animație. |
+| manifest.json | `manifest.json` | Atribuirea modelelor CAD pentru `public/models/`. |
+| 💾 Salvează proiect | `proiect_<data>.mcri.json` | Layout, modelele CAD (încorporate), animația, programele robot – **tot ce ai construit**, portabil pe alt calculator (📂 Deschide proiect). |
+
+Pentru grafice în lucrare: rulează simularea 10–15 min la 8×, exportă CSV și calculează din coloane distribuția timpilor de ciclu și debitul;
+JSON-ul operațiilor permite reconstruirea Gantt-ului (ex. în Excel/Python).
+
+## Scurtături de tastatură
+
+| Tastă | Acțiune |
+| --- | --- |
+| `Space` | Play/Pause (simulare; în editorul de animație – redare animație) |
+| `→` | Step 0,1 s (simulare în pauză) |
+| `,` / `.` sau `←` / `→` | Cadru anterior / următor (editorul de animație) |
+| `G` / `E` | Gizmo mutare / rotire |
+| `Shift+R` | Reset simulare |
+| Ctrl + scroll | Zoom în Gantt / timeline |
+
+---
 
 ## Instalare și rulare
 
