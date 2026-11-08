@@ -18,6 +18,7 @@ import { objectRegistry } from './registry';
 import { CustomModels } from './ModelOrPrimitive';
 import { Selectable } from './Selectable';
 import { useModelStore } from '../store/useModelStore';
+import { AnimDriver, Gizmo } from './AnimDriver';
 
 const S = 0.001; // mm → m
 
@@ -147,6 +148,7 @@ function Highlights() {
 
 export function CellScene() {
   const showGrid = useSimStore((s) => s.showGrid);
+  const layout = useSimStore((s) => s.layout);
   const loadModels = useModelStore((s) => s.load);
   useEffect(() => {
     loadModels();
@@ -175,7 +177,9 @@ export function CellScene() {
         shadow-bias={-0.0004}
       />
       <directionalLight position={[-10, 12, -8]} intensity={0.5} />
-      <SimLoop />
+      {layout === 'mcri' && <SimLoop />}
+      <AnimDriver />
+      <Gizmo />
       <CameraRig />
       <Capture />
       <WireframeEffect />
@@ -205,15 +209,19 @@ export function CellScene() {
       </GizmoHelper>
       {/* celula – în mm */}
       <group scale={[S, S, S]}>
-        <Fence />
-        <PalletLine />
-        <BucketConveyors />
-        {ROBOTS.map((r) => (
-          <Robot key={r.id} cfg={r} />
-        ))}
-        <Stations />
-        <Safety />
-        <Products />
+        {layout === 'mcri' && (
+          <>
+            <Fence />
+            <PalletLine />
+            <BucketConveyors />
+            {ROBOTS.map((r) => (
+              <Robot key={r.id} cfg={r} />
+            ))}
+            <Stations />
+            <Safety />
+            <Products />
+          </>
+        )}
         <CustomModels Selectable={Selectable} />
       </group>
     </>

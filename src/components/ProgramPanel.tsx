@@ -186,13 +186,13 @@ export function ProgramPanel() {
               {st.kind === 'move' && (
                 <label className="flex items-center gap-1">
                   viteză
-                  <input className="ps-input w-12" type="number" min={1} max={200} value={st.speed ?? 100} onChange={(e) => update(st.id, { speed: Number(e.target.value) })} />%
+                  <input className="ps-input !w-12" type="number" min={1} max={200} value={st.speed ?? 100} onChange={(e) => update(st.id, { speed: Number(e.target.value) })} />%
                 </label>
               )}
               {st.kind !== 'move' && (
                 <label className="flex items-center gap-1">
                   durată
-                  <input className="ps-input w-14" type="number" min={0} step={0.1} value={st.dwell ?? (st.kind === 'wait' ? 1 : 0.3)} onChange={(e) => update(st.id, { dwell: Number(e.target.value) })} />s
+                  <input className="ps-input !w-14" type="number" min={0} step={0.1} value={st.dwell ?? (st.kind === 'wait' ? 1 : 0.3)} onChange={(e) => update(st.id, { dwell: Number(e.target.value) })} />s
                 </label>
               )}
             </div>

@@ -5,7 +5,7 @@ import type { CameraPresetId } from '../config/cell.config';
 import { useModelStore } from '../store/useModelStore';
 
 export function Viewport() {
-  const { wireframe, showCollisions, showReach, showGrid, setFlag, requestView, viewRequest } = useSimStore();
+  const { wireframe, showCollisions, showReach, showGrid, setFlag, requestView, viewRequest, gizmo, setGizmo, layout } = useSimStore();
   const views: { id: CameraPresetId; label: string }[] = [
     { id: 'iso', label: 'Iso' },
     { id: 'top', label: 'Sus' },
@@ -55,7 +55,26 @@ export function Viewport() {
         <button className={`ps-btn ${showGrid ? 'ps-btn-active' : ''}`} onClick={() => setFlag('showGrid', !showGrid)} title="Grilă pardoseală 1 m">
           # Grilă
         </button>
+        <span className="w-px h-5 bg-ps-border mx-1" />
+        <span className="text-ps-muted text-[10px]">Gizmo</span>
+        {(
+          [
+            ['translate', '✥ Mută (G)'],
+            ['rotate', '↻ Rotește (E)'],
+            ['scale', '⤢ Scară'],
+            ['off', 'Oprit'],
+          ] as const
+        ).map(([m, label]) => (
+          <button key={m} className={`ps-btn ${gizmo === m ? 'ps-btn-active' : ''}`} onClick={() => setGizmo(m)} title="Gizmo pentru modelul CAD selectat (plasare liberă)">
+            {label}
+          </button>
+        ))}
       </div>
+      {layout === 'empty' && (
+        <div className="absolute top-12 left-2 text-[10px] text-ps-muted bg-ps-panel/70 rounded px-2 py-1 pointer-events-none">
+          Celulă goală – trage fișiere .glb peste viewport sau folosește tabul Modele CAD
+        </div>
+      )}
       <div className="absolute bottom-2 left-2 text-[10px] text-ps-muted bg-ps-panel/70 rounded px-2 py-1 pointer-events-none">
         Rotire: click stânga · Pan: click dreapta · Zoom: scroll · Click pe obiect = selectare
       </div>

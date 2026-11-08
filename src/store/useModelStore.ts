@@ -12,6 +12,7 @@ export interface RuntimeModel {
   position: [number, number, number]; // mm
   rotation: [number, number, number]; // grade
   visible: boolean;
+  parentId?: string; // ierarhie: copil al altui model importat (ex. piese de robot)
 }
 
 type Stored = { meta: RuntimeModel; blob: Blob };
@@ -25,6 +26,8 @@ interface ModelStore {
   update(id: string, patch: Partial<RuntimeModel>): void;
   remove(id: string): Promise<void>;
   manifest(): Record<string, unknown>;
+  getBlob(id: string): Blob | undefined;
+  addFromBlob(meta: RuntimeModel, blob: Blob): Promise<void>;
 }
 
 const blobs = new Map<string, Blob>();
@@ -61,6 +64,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       position: extra.position ?? [0, 0, 0],
       rotation: extra.rotation ?? [0, 0, 0],
       visible: true,
+      parentId: extra.parentId,
     };
     blobs.set(id, file);
     const url = URL.createObjectURL(file);
@@ -85,9 +89,17 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     set((s) => {
       const urls = { ...s.urls };
       delete urls[id];
-      return { models: s.models.filter((m) => m.id !== id), urls };
+      // copiii devin orfani (rămân la poziția locală)
+      return { models: s.models.filter((m) => m.id !== id).map((m) => (m.parentId === id ? { ...m, parentId: undefined } : m)), urls };
     });
     await idbDelete(id).catch(() => undefined);
+  },
+  getBlob: (id) => blobs.get(id),
+  addFromBlob: async (meta, blob) => {
+    blobs.set(meta.id, blob);
+    const url = URL.createObjectURL(blob);
+    set((s) => ({ models: [...s.models.filter((m) => m.id !== meta.id), meta], urls: { ...s.urls, [meta.id]: url } }));
+    await idbPut<Stored>(meta.id, { meta, blob }).catch(() => undefined);
   },
   manifest: () => {
     const out: Record<string, unknown> = {};

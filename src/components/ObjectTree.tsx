@@ -111,7 +111,21 @@ export function ObjectTree() {
     () => [...tree.Echipamente, ...(customModels.length ? [{ id: 'CUSTOM_MODELS', name: 'Modele CAD importate', kind: 'group', children: customModels.map((m) => ({ id: m.id, name: m.name, kind: 'model' })) }] : [])],
     [tree, customModels],
   );
+  const layout = useSimStore((s) => s.layout);
   const folders: TreeFolder[] = ['Roboți', 'Conveioare', 'Echipamente', 'Produse', 'Siguranță'];
+  if (layout === 'empty') {
+    const byParent = (pid?: string): TreeNode[] => customModels.filter((m) => (m.parentId ?? undefined) === pid).map((m) => ({ id: m.id, name: m.name, kind: 'model', children: byParent(m.id) }));
+    const roots = byParent(undefined).concat(customModels.filter((m) => m.parentId && !customModels.some((p) => p.id === m.parentId)).map((m) => ({ id: m.id, name: m.name, kind: 'model' })));
+    return (
+      <div className="w-[300px] shrink-0 flex flex-col bg-ps-panel border-r border-ps-border">
+        <div className="ps-title">Object Tree – celulă goală</div>
+        <div className="flex-1 overflow-auto text-xs">
+          <Folder name="Modele CAD importate" nodes={roots} count={customModels.length} />
+          {customModels.length === 0 && <div className="px-3 py-2 text-ps-muted">Niciun model. Trage fișiere .glb peste viewport.</div>}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="w-[300px] shrink-0 flex flex-col bg-ps-panel border-r border-ps-border">
       <div className="ps-title">Object Tree</div>

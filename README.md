@@ -33,6 +33,19 @@ Scurtături: `Space` Play/Pause · `→` Step · `Shift+R` Reset.
   - comenzi directe: Prinde/Eliberează acum, HOME, + palet plin la S1, + palet gol la S7, + găleată pe B1, golire celulă.
   Conveioarele și stațiile funcționează la fel în ambele moduri, așa că poți construi manual tot ciclul.
 
+### Celulă goală + propriile modele CAD + animație pe cadre
+
+Butonul **Celulă goală** (bara de sus) ascunde celula MCRI și lasă doar pardoseala: aici construiești celula ta din modele glTF.
+
+- **Plasare**: trage `.glb` peste viewport; mută/rotește cu **gizmo** (G = mutare, E = rotire, snap 10 mm / 5°) sau numeric din tabul Modele CAD.
+- **Ierarhie**: fiecare model poate avea un **părinte** (poziția/rotația devin relative la părinte). Așa articulezi un robot din piese:
+  bază → braț → antebraț → sculă; rotind părintele se mișcă tot lanțul.
+- **Animație pe cadre** (panoul de jos, tabul *Animație*): timeline cu fps și lungime, piste per obiect, chei ◆ (poziție, rotație, scară, vizibilitate;
+  pentru roboții MCRI – valorile axelor), interpolare liniară sau lină, scrub cu mouse-ul, drag al cheilor, redare în buclă, pas cadru cu cadru
+  (`,` / `.`), **auto-key** când muți un obiect cu gizmo-ul, export/import JSON. Funcționează și în celula MCRI (ex. keyframes pe Robot 1 și pe un
+  model importat).
+- **Proiect**: *Salvează proiect* scrie un singur fișier `.mcri.json` cu layout, modele (încorporate), animație și programele robot; *Deschide proiect* îl reîncarcă pe alt calculator.
+
 ### Modele CAD din aplicație (tabul „Modele CAD”)
 
 Trage un fișier `.glb`/`.gltf` peste viewport sau folosește tabul **Modele CAD**: modelul poate **înlocui** un obiect existent (ex. `EQ_VISION`,

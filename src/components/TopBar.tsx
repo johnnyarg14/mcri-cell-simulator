@@ -7,7 +7,7 @@ import { exportCycleCSV, exportSequenceJSON, importSequenceFile } from '../utils
 const fmt = (t: number) => engine.fmtTime(t);
 
 export function TopBar() {
-  const { playing, speed, snapshot, play, pause, stop, stepOnce, reset, setSpeed, requestCapture, setStatus, setMode, setRightTab } = useSimStore();
+  const { playing, speed, snapshot, play, pause, stop, stepOnce, reset, setSpeed, requestCapture, setStatus, setMode, setRightTab, layout, setLayout } = useSimStore();
   const fileRef = useRef<HTMLInputElement>(null);
   const delta = snapshot.rateBpm - snapshot.targetBpm;
   const speeds = [0.25, 0.5, 1, 2, 4, 8];
@@ -20,7 +20,15 @@ export function TopBar() {
           <div className="text-[10px] text-ps-muted">Depal · Etichetare · Repal – găleți 5 gal</div>
         </div>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 pr-2 border-r border-ps-border" title="Celulă MCRI (config) sau celulă goală pentru propriile modele CAD">
+        <button className={`ps-btn ${layout === 'mcri' ? 'ps-btn-active' : ''}`} onClick={() => setLayout('mcri')}>
+          Celula MCRI
+        </button>
+        <button className={`ps-btn ${layout === 'empty' ? 'ps-btn-active' : ''}`} onClick={() => setLayout('empty')}>
+          Celulă goală
+        </button>
+      </div>
+      <div className={`flex items-center gap-1 ${layout === 'empty' ? 'opacity-40 pointer-events-none' : ''}`}>
         <button className={`ps-btn ${playing ? 'ps-btn-active' : ''}`} onClick={play} title="Play (Space)">
           ▶ Play
         </button>

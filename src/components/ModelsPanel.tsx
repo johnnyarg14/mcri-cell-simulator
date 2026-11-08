@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { buildObjectTree } from '../scene/objects';
 import { useModelStore, type RuntimeModel } from '../store/useModelStore';
 import { useSimStore } from '../store/useSimStore';
+import { exportProject, importProject } from '../utils/project';
 
 /** lista id-urilor de obiecte care pot fi înlocuite cu un model glTF */
 function replaceableIds(): { id: string; name: string }[] {
@@ -19,7 +20,17 @@ function replaceableIds(): { id: string; name: string }[] {
 
 export function ModelEditor({ m }: { m: RuntimeModel }) {
   const { update, remove } = useModelStore();
+  const all = useModelStore((s) => s.models);
   const ids = replaceableIds();
+  const isDescendant = (cand: string, of: string): boolean => {
+    let cur = all.find((x) => x.id === cand);
+    while (cur?.parentId) {
+      if (cur.parentId === of) return true;
+      cur = all.find((x) => x.id === cur!.parentId);
+    }
+    return false;
+  };
+  const parents = all.filter((x) => x.id !== m.id && x.objectId === 'CUSTOM' && !isDescendant(x.id, m.id));
   const num = (v: number, k: 'position' | 'rotation', i: number) => {
     const arr = [...m[k]] as [number, number, number];
     arr[i] = v;
@@ -50,9 +61,22 @@ export function ModelEditor({ m }: { m: RuntimeModel }) {
           ))}
         </select>
       </label>
+      {m.objectId === 'CUSTOM' && (
+        <label className="flex items-center gap-1" title="Copilul se mișcă odată cu părintele (poziția/rotația sunt relative la părinte) – util pentru piese de robot">
+          <span className="text-ps-muted w-16">Părinte</span>
+          <select className="ps-input" value={m.parentId ?? ''} onChange={(e) => update(m.id, { parentId: e.target.value || undefined })}>
+            <option value="">— niciunul (fix în celulă) —</option>
+            {parents.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="flex items-center gap-1">
         <span className="text-ps-muted w-16">Scară</span>
-        <input className="ps-input w-20" type="number" step={0.001} value={m.scale} onChange={(e) => update(m.id, { scale: Number(e.target.value) || 1 })} />
+        <input className="ps-input !w-20" type="number" step={0.001} value={m.scale} onChange={(e) => update(m.id, { scale: Number(e.target.value) || 1 })} />
         <button className="ps-btn" onClick={() => update(m.id, { scale: 1 })}>
           mm
         </button>
@@ -88,8 +112,10 @@ export function ModelsPanel() {
   const manifest = useModelStore((s) => s.manifest);
   const setStatus = useSimStore((s) => s.setStatus);
   const fileRef = useRef<HTMLInputElement>(null);
+  const projRef = useRef<HTMLInputElement>(null);
   const [target, setTarget] = useState('CUSTOM');
   const ids = replaceableIds();
+  const layout = useSimStore((s) => s.layout);
 
   const onFiles = async (files: FileList | File[]) => {
     for (const f of Array.from(files)) {
@@ -105,6 +131,26 @@ export function ModelsPanel() {
   return (
     <div className="text-xs">
       <div className="ps-title">Modele CAD (glTF / GLB)</div>
+      <div className="px-2 py-1 flex gap-1">
+        <button className="ps-btn flex-1" onClick={() => exportProject().then(() => setStatus('Proiect salvat (.mcri.json)'))} title="Salvează layout + modele + animație + programe într-un singur fișier">
+          💾 Salvează proiect
+        </button>
+        <button className="ps-btn flex-1" onClick={() => projRef.current?.click()} title="Deschide un fișier .mcri.json (înlocuiește modelele curente)">
+          📂 Deschide proiect
+        </button>
+        <input
+          ref={projRef}
+          type="file"
+          accept=".json"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f && confirm('Modelele și animația curente vor fi înlocuite. Continui?')) importProject(f).then(setStatus, (err) => setStatus(`Eroare: ${(err as Error).message}`));
+            e.target.value = '';
+          }}
+        />
+      </div>
+      {layout === 'empty' && <div className="px-2 py-1 text-[10px] text-emerald-400">Celulă goală: modelele se plasează liber. Mută-le cu gizmo-ul din viewport (G / E) sau din câmpurile de mai jos.</div>}
       <div className="px-2 py-1 text-[10px] text-ps-muted">
         Modelele importate aici sunt salvate în browser (IndexedDB) și înlocuiesc primitiva obiectului ales. Pentru o configurație permanentă copiază fișierele în <code>public/models/</code> și exportă manifestul.
       </div>
@@ -133,7 +179,17 @@ export function ModelsPanel() {
           <br />
           <span className="text-[10px]">(se pot trage și direct peste viewport-ul 3D)</span>
         </div>
-        <input ref={fileRef} type="file" accept=".glb,.gltf" multiple className="hidden" onChange={(e) => e.target.files && onFiles(e.target.files)} />
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".glb,.gltf"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files) onFiles(Array.from(e.target.files));
+            e.target.value = '';
+          }}
+        />
       </div>
       <div className="ps-title flex items-center justify-between">
         <span>Modele importate ({models.length})</span>

@@ -374,6 +374,15 @@ export class Engine {
     return res.converged;
   }
 
+  /** aplică direct valorile axelor (animație pe cadre), fără a intra în mod manual */
+  applyJoints(robotId: string, q: number[]) {
+    const r = this.robots[robotId];
+    if (!r) return;
+    for (let i = 0; i < r.q.length; i++) if (q[i] !== undefined) r.q[i] = q[i];
+    r.motion = null;
+    this.updateRobotFK(r);
+  }
+
   teachCurrent(robotId: string, name: string) {
     const r = this.robots[robotId];
     if (!r) return;

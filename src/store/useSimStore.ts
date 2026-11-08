@@ -23,6 +23,13 @@ interface SimStore {
   productsVersion: number;
   rightTab: 'props' | 'program' | 'models';
   setRightTab(t: 'props' | 'program' | 'models'): void;
+  /** 'mcri' = celula completă din config; 'empty' = celulă goală pentru propriile modele CAD */
+  layout: 'mcri' | 'empty';
+  setLayout(l: 'mcri' | 'empty'): void;
+  bottomTab: 'sequence' | 'animation';
+  setBottomTab(t: 'sequence' | 'animation'): void;
+  gizmo: 'translate' | 'rotate' | 'scale' | 'off';
+  setGizmo(g: 'translate' | 'rotate' | 'scale' | 'off'): void;
   setMode(m: 'auto' | 'manual'): void;
   play(): void;
   pause(): void;
@@ -58,6 +65,15 @@ export const useSimStore = create<SimStore>((set, get) => ({
   productsVersion: 0,
   rightTab: 'props',
   setRightTab: (t) => set({ rightTab: t }),
+  layout: (localStorage.getItem('mcri.layout') as 'mcri' | 'empty') || 'mcri',
+  setLayout: (l) => {
+    localStorage.setItem('mcri.layout', l);
+    set({ layout: l, playing: false, selectedId: null, bottomTab: l === 'empty' ? 'animation' : get().bottomTab, rightTab: l === 'empty' ? 'models' : get().rightTab });
+  },
+  bottomTab: 'sequence',
+  setBottomTab: (t) => set({ bottomTab: t }),
+  gizmo: 'translate',
+  setGizmo: (g) => set({ gizmo: g }),
   setMode: (m) => {
     engine.setMode(m);
     set({ snapshot: engine.snapshot() });

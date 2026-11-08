@@ -78,24 +78,26 @@ export function ModelOrPrimitive({ name, children }: { name: string; children: R
   );
 }
 
-/** modele importate cu plasare liberă (objectId = 'CUSTOM') */
-export function CustomModels({ Selectable }: { Selectable: (p: { id: string; name: string; children: ReactNode }) => ReactNode }) {
+/** modele importate cu plasare liberă (objectId = 'CUSTOM'), cu ierarhie părinte → copil */
+export function CustomModels({ Selectable }: { Selectable: (p: { id: string; name: string; children: ReactNode; position?: [number, number, number]; rotation?: [number, number, number] }) => ReactNode }) {
   const all = useModelStore((s) => s.models);
-  const models = all.filter((m) => m.objectId === 'CUSTOM');
   const urls = useModelStore((s) => s.urls);
-  return (
-    <>
-      {models.map((m) =>
-        urls[m.id] ? (
-          <Selectable key={m.id} id={m.id} name={m.name}>
-            <group visible={m.visible}>
+  const models = all.filter((m) => m.objectId === 'CUSTOM');
+  const D = Math.PI / 180;
+  const render = (parentId: string | undefined): ReactNode =>
+    models
+      .filter((m) => (m.parentId ?? undefined) === parentId && (parentId !== undefined || !m.parentId || !models.some((p) => p.id === m.parentId)))
+      .map((m) => (
+        <Selectable key={m.id} id={m.id} name={m.name} position={m.position} rotation={[m.rotation[0] * D, m.rotation[1] * D, m.rotation[2] * D]}>
+          <group visible={m.visible}>
+            {urls[m.id] && (
               <Suspense fallback={null}>
-                <GLTFModel entry={{ file: m.fileName, scale: m.scale, position: m.position, rotation: m.rotation }} url={urls[m.id]} />
+                <GLTFModel entry={{ file: m.fileName, scale: m.scale }} url={urls[m.id]} />
               </Suspense>
-            </group>
-          </Selectable>
-        ) : null,
-      )}
-    </>
-  );
+            )}
+          </group>
+          {render(m.id)}
+        </Selectable>
+      ));
+  return <>{render(undefined)}</>;
 }

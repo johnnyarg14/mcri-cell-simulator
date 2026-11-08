@@ -182,30 +182,18 @@ export function SequenceEditor() {
     }
   };
 
-  if (collapsed)
-    return (
-      <div className="h-7 shrink-0 flex items-center gap-2 px-2 bg-ps-panel border-t border-ps-border">
-        <button className="ps-btn" onClick={() => setFlag('bottomCollapsed', false)}>
-          ▴ Sequence Editor
-        </button>
-        <span className="text-ps-muted">{engine.ops.length} operații înregistrate</span>
-      </div>
-    );
-
+  void collapsed;
+  void setFlag;
   return (
-    <div className="h-[220px] shrink-0 flex flex-col bg-ps-panel border-t border-ps-border">
+    <div className="flex-1 flex flex-col min-h-0">
       <div className="flex items-center gap-2 px-2 h-7 border-b border-ps-border bg-ps-panel2">
-        <span className="font-semibold">Sequence Editor</span>
-        <span className="text-ps-muted">– Gantt pe resurse · click pe operație = salt în simulare · Ctrl+scroll = zoom</span>
+        <span className="text-ps-muted">Gantt pe resurse · click pe operație = salt în simulare · Ctrl+scroll = zoom</span>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-ps-muted">Zoom</span>
           <input type="range" min={1} max={120} step={1} value={pxPerSec} onChange={(e) => setPxPerSec(Number(e.target.value))} className="w-28" />
           <span className="font-mono w-16 whitespace-nowrap">{pxPerSec.toFixed(0)} px/s</span>
           <button className={`ps-btn ${follow ? 'ps-btn-active' : ''}`} onClick={() => setFollow(!follow)}>
             Urmărește
-          </button>
-          <button className="ps-btn" onClick={() => setFlag('bottomCollapsed', true)}>
-            ▾
           </button>
         </div>
       </div>
