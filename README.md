@@ -6,7 +6,7 @@ Modelează celula **MCRI de depaletizare / repaletizare găleți de 5 gal** cu e
 
 Lucrare de licență – UPB FIIR, Mecatronică și Robotică.
 
-**Demo (GitHub Pages):** `https://<utilizator-github>.github.io/mcri-cell-simulator/` – înlocuiește `<utilizator-github>` după primul push (vezi [Publicare](#publicare-pe-github-pages)).
+**Demo (GitHub Pages):** https://johnnyarg14.github.io/mcri-cell-simulator/ (activ după primul push și activarea Pages – vezi [Publicare](#publicare-pe-github-pages)).
 
 ![MCRI Cell Simulator](docs/screenshot.png)
 
@@ -144,7 +144,7 @@ Recomandări: simplifică modelele (fără filete/găuri fine), < 5–10 MB per 
 1. Creează repo-ul pe GitHub (ex. `mcri-cell-simulator`) și fă push pe `main`.
 2. În repo: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 3. Workflow-ul `.github/workflows/deploy.yml` construiește cu `BASE_PATH=/<nume-repo>/` și publică `dist/`.
-4. Aplicația va fi disponibilă la `https://<utilizator-github>.github.io/<nume-repo>/` – actualizează link-ul de la începutul acestui README.
+4. Aplicația va fi disponibilă la https://johnnyarg14.github.io/mcri-cell-simulator/.
 
 ## Limitări cunoscute (mockup)
 
