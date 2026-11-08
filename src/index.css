@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-family: 'Segoe UI', Inter, system-ui, sans-serif;
+  font-size: 12px;
+  user-select: none;
+}
+
+.ps-btn {
+  @apply px-2 py-1 rounded border border-ps-border bg-ps-panel2 hover:bg-[#363b43] text-ps-text text-xs leading-4 disabled:opacity-40 disabled:cursor-not-allowed;
+}
+.ps-btn-active {
+  @apply bg-ps-accent/30 border-ps-accent text-white;
+}
+.ps-title {
+  @apply text-[11px] uppercase tracking-wider text-ps-muted font-semibold px-2 py-1 border-b border-ps-border bg-ps-panel2;
+}
+.ps-row {
+  @apply flex items-center justify-between px-2 py-[3px] text-xs;
+}
+.ps-input {
+  @apply bg-ps-bg border border-ps-border rounded px-1 py-[2px] text-xs text-ps-text w-full;
+}
+.led {
+  @apply inline-block w-2 h-2 rounded-full border border-black/40;
+}
+input[type='range'] {
+  @apply accent-ps-accent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #4a505a;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #1b1d21;
+}

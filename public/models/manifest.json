@@ -1,0 +1,3 @@
+{
+  "_comment": "Adaugă aici modelele glTF: cheia = id-ul obiectului din Object Tree, ex. \"EQ_VISION\": { \"file\": \"Statie_inspectie_vision_457.glb\", \"scale\": 1 }. Vezi README – secțiunea STEP → glTF."
+}

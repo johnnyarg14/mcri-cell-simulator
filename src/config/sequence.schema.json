@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MCRI sequence",
+  "type": "object",
+  "required": ["resources", "robot1", "robot2", "stations"],
+  "definitions": {
+    "step": {
+      "type": "object",
+      "required": ["id", "name", "target", "duration", "color"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "target": { "enum": ["prePick", "pick", "prePlace", "place", "dwell", "home"] },
+        "duration": { "type": "number", "minimum": 0, "description": "secunde (durata minimă; se prelungește dacă vitezele de catalog ale axelor nu permit)" },
+        "color": { "type": "string" },
+        "action": { "enum": ["grip", "release"] }
+      }
+    }
+  },
+  "properties": {
+    "targetRateBpm": { "type": "number" },
+    "resources": { "type": "array", "items": { "type": "object", "required": ["id", "name", "color"] } },
+    "robot1": { "type": "object", "properties": { "rowCycle": { "type": "array", "items": { "$ref": "#/definitions/step" } }, "sheetCycle": { "type": "array", "items": { "$ref": "#/definitions/step" } }, "waitName": { "type": "string" } } },
+    "robot2": { "type": "object", "properties": { "bucketCycle": { "type": "array", "items": { "$ref": "#/definitions/step" } }, "sheetCycle": { "type": "array", "items": { "$ref": "#/definitions/step" } }, "waitName": { "type": "string" } } },
+    "stations": {
+      "type": "object",
+      "properties": {
+        "labeler": { "type": "object", "properties": { "name": { "type": "string" }, "duration": { "type": "number" } } },
+        "vision": { "type": "object", "properties": { "name": { "type": "string" }, "duration": { "type": "number" }, "rejectEvery": { "type": "integer" } } },
+        "wrapper": { "type": "object", "properties": { "name": { "type": "string" }, "duration": { "type": "number" } } },
+        "palletInfeedDelay": { "type": "number" }
+      }
+    }
+  }
+}

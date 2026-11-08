@@ -1,0 +1,66 @@
+{
+  "$schema": "./sequence.schema.json",
+  "description": "Secvența implicită a celulei MCRI. Duratele în secunde. Editabilă; aplicația o încarcă la pornire (sau prin Import).",
+  "targetRateBpm": 10,
+  "resources": [
+    { "id": "ROBOT_1", "name": "Robot 1 – M-410iC/315", "color": "#ffcc1a" },
+    { "id": "ROBOT_2", "name": "Robot 2 – M-20iB/25", "color": "#f28c28" },
+    { "id": "PALLET_LINE", "name": "CDLR paleți", "color": "#4f8de6" },
+    { "id": "CONV_B1", "name": "Conveior B1 (ieșire)", "color": "#5fb0a8" },
+    { "id": "CONV_B3", "name": "Conveior B3 (retur)", "color": "#8fb46a" },
+    { "id": "EQ_LABELER", "name": "Etichetator", "color": "#c678dd" },
+    { "id": "EQ_VISION", "name": "Inspecție vision", "color": "#e06c75" },
+    { "id": "EQ_WRAPPER", "name": "Infoliator", "color": "#56b6c2" }
+  ],
+  "robot1": {
+    "rowCycle": [
+      { "id": "approach", "name": "Apropiere rând", "target": "prePick", "duration": 1.4, "color": "#ffe066" },
+      { "id": "descend", "name": "Coborâre", "target": "pick", "duration": 0.7, "color": "#ffd43b" },
+      { "id": "grip", "name": "Prindere (vacuum)", "target": "dwell", "duration": 0.4, "color": "#fab005", "action": "grip" },
+      { "id": "lift", "name": "Ridicare", "target": "prePick", "duration": 0.7, "color": "#ffd43b" },
+      { "id": "transfer", "name": "Transfer → B1", "target": "prePlace", "duration": 2.2, "color": "#f59f00" },
+      { "id": "lower", "name": "Coborâre pe B1", "target": "place", "duration": 0.7, "color": "#ffd43b" },
+      { "id": "release", "name": "Eliberare", "target": "dwell", "duration": 0.3, "color": "#fab005", "action": "release" },
+      { "id": "retract", "name": "Retragere", "target": "prePlace", "duration": 0.6, "color": "#ffd43b" }
+    ],
+    "sheetCycle": [
+      { "id": "approach", "name": "Apropiere foaie", "target": "prePick", "duration": 1.4, "color": "#d0bfff" },
+      { "id": "descend", "name": "Coborâre", "target": "pick", "duration": 0.6, "color": "#b197fc" },
+      { "id": "grip", "name": "Prindere foaie", "target": "dwell", "duration": 0.4, "color": "#9775fa", "action": "grip" },
+      { "id": "lift", "name": "Ridicare", "target": "prePick", "duration": 0.6, "color": "#b197fc" },
+      { "id": "transfer", "name": "Transfer → container", "target": "prePlace", "duration": 1.8, "color": "#845ef7" },
+      { "id": "release", "name": "Eliberare foaie", "target": "dwell", "duration": 0.3, "color": "#9775fa", "action": "release" },
+      { "id": "retract", "name": "Retragere", "target": "prePlace", "duration": 0.4, "color": "#b197fc" }
+    ],
+    "waitName": "Așteptare (zonă B1 ocupată)"
+  },
+  "robot2": {
+    "bucketCycle": [
+      { "id": "approach", "name": "Apropiere găleată", "target": "prePick", "duration": 1.0, "color": "#ffa94d" },
+      { "id": "descend", "name": "Coborâre", "target": "pick", "duration": 0.5, "color": "#ff922b" },
+      { "id": "grip", "name": "Prindere (4 ventuze)", "target": "dwell", "duration": 0.3, "color": "#fd7e14", "action": "grip" },
+      { "id": "lift", "name": "Ridicare", "target": "prePick", "duration": 0.5, "color": "#ff922b" },
+      { "id": "transfer", "name": "Transfer → palet", "target": "prePlace", "duration": 1.6, "color": "#f76707" },
+      { "id": "lower", "name": "Coborâre pe palet", "target": "place", "duration": 0.6, "color": "#ff922b" },
+      { "id": "release", "name": "Eliberare", "target": "dwell", "duration": 0.3, "color": "#fd7e14", "action": "release" },
+      { "id": "retract", "name": "Retragere", "target": "prePlace", "duration": 0.5, "color": "#ff922b" }
+    ],
+    "sheetCycle": [
+      { "id": "approach", "name": "Apropiere magazie foi", "target": "prePick", "duration": 1.2, "color": "#d0bfff" },
+      { "id": "descend", "name": "Coborâre", "target": "pick", "duration": 0.5, "color": "#b197fc" },
+      { "id": "grip", "name": "Prindere foaie", "target": "dwell", "duration": 0.4, "color": "#9775fa", "action": "grip" },
+      { "id": "lift", "name": "Ridicare", "target": "prePick", "duration": 0.5, "color": "#b197fc" },
+      { "id": "transfer", "name": "Transfer foaie → palet", "target": "prePlace", "duration": 1.8, "color": "#845ef7" },
+      { "id": "lower", "name": "Coborâre", "target": "place", "duration": 0.6, "color": "#b197fc" },
+      { "id": "release", "name": "Eliberare foaie", "target": "dwell", "duration": 0.3, "color": "#9775fa", "action": "release" },
+      { "id": "retract", "name": "Retragere", "target": "prePlace", "duration": 0.5, "color": "#b197fc" }
+    ],
+    "waitName": "Așteptare găleată"
+  },
+  "stations": {
+    "labeler": { "name": "Etichetare", "duration": 2.0 },
+    "vision": { "name": "Inspecție vision", "duration": 1.5, "rejectEvery": 25 },
+    "wrapper": { "name": "Înfoliere palet", "duration": 60 },
+    "palletInfeedDelay": 30
+  }
+}
